@@ -1,0 +1,21 @@
+version: "3"
+services:
+    mongo:
+        image: mongo:latest
+        command: --configExpand rest  
+        ports:
+            - 27017:27017
+        logging:
+            driver: none        
+    app:
+        ports: 
+            - 8080:8080
+        build: ./
+        volumes:
+            - ./:/app
+        cap_add:
+            - SYS_ADMIN
+            - NET_ADMIN
+        network_mode: "host"        
+        depends_on:
+            - mongo
