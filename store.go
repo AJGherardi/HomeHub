@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	mesh "github.com/AJGherardi/GoMeshCryptro"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -44,7 +45,7 @@ func addNetData(collection *mongo.Collection, data NetData) {
 
 func getDevices(collection *mongo.Collection) []Device {
 	var devices []Device
-	// Get all keys
+	// Get all Devices
 	cur, _ := collection.Find(context.TODO(), bson.D{})
 	// Deserialize into array of devices
 	for cur.Next(context.TODO()) {
@@ -63,23 +64,43 @@ func addDevice(collection *mongo.Collection, device Device) {
 	collection.InsertOne(context.TODO(), device)
 }
 
-func getAppKeys(collection *mongo.Collection) []AppKey {
-	var keys []AppKey
+func getAppKeys(collection *mongo.Collection) []mesh.AppKey {
+	var keys []mesh.AppKey
 	// Get all keys
 	cur, _ := collection.Find(context.TODO(), bson.D{})
 	// Deserialize into array of app keys
 	for cur.Next(context.TODO()) {
 		var result bson.M
 		cur.Decode(&result)
-		ID := result["id"].(primitive.Binary).Data
+		aid := result["aid"].(primitive.Binary).Data
 		key := result["key"].(primitive.Binary).Data
-		keyType := result["type"].(bool)
-		// Add to arrays
-		keys = append(keys, AppKey{ID: ID, Key: key, Type: KeyType(keyType)})
+		keyIndex := result["keyindex"].(primitive.Binary).Data
+		// Add to array
+		keys = append(keys, mesh.AppKey{Aid: aid, Key: key, KeyIndex: keyIndex})
 	}
 	return keys
 }
 
-func addAppKey(collection *mongo.Collection, key AppKey) {
+func addAppKey(collection *mongo.Collection, key mesh.AppKey) {
+	collection.InsertOne(context.TODO(), key)
+}
+
+func getDevKeys(collection *mongo.Collection) []mesh.DevKey {
+	var keys []mesh.DevKey
+	// Get all keys
+	cur, _ := collection.Find(context.TODO(), bson.D{})
+	// Deserialize into array of dev keys
+	for cur.Next(context.TODO()) {
+		var result bson.M
+		cur.Decode(&result)
+		addr := result["addr"].(primitive.Binary).Data
+		key := result["key"].(primitive.Binary).Data
+		// Add to array
+		keys = append(keys, mesh.DevKey{Addr: addr, Key: key})
+	}
+	return keys
+}
+
+func addDevKey(collection *mongo.Collection, key mesh.DevKey) {
 	collection.InsertOne(context.TODO(), key)
 }

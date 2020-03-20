@@ -1,18 +1,5 @@
 package main
 
-// KeyType is either app or dev
-type KeyType bool
-
-// AppKey is a app key and its public aid
-type AppKey struct {
-	// For aid or dev address
-	ID  []byte
-	Key []byte
-	// Key index is only for App Keys
-	KeyIndex []byte
-	Type     KeyType
-}
-
 // Device holds the name addr and type of device
 type Device struct {
 	Name string
@@ -37,10 +24,3 @@ type ProvData struct {
 	IvIndex     string
 	NextDevAddr string
 }
-
-const (
-	// KeyDev is a key used for dev msgs
-	KeyDev KeyType = false
-	// KeyApp is a key used for app msgs
-	KeyApp KeyType = true
-)
