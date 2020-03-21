@@ -6,6 +6,11 @@ func encodeBase64(bytes []byte) string {
 	return base64.StdEncoding.EncodeToString(bytes)
 }
 
+func decodeBase64(imput string) []byte {
+	output, _ := base64.StdEncoding.DecodeString(imput)
+	return output
+}
+
 func encodeProvData(netKey []byte, keyIndex []byte, flags []byte, ivIndex []byte, devAddr []byte) ProvData {
 	keyB64 := encodeBase64(netKey)
 	indexB64 := encodeBase64(keyIndex)

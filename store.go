@@ -39,7 +39,7 @@ func getNetData(collection *mongo.Collection) NetData {
 	return netData
 }
 
-func addNetData(collection *mongo.Collection, data NetData) {
+func insertNetData(collection *mongo.Collection, data NetData) {
 	collection.InsertOne(context.TODO(), data)
 }
 
@@ -52,15 +52,15 @@ func getDevices(collection *mongo.Collection) []Device {
 		var result bson.M
 		cur.Decode(&result)
 		name := result["name"].(string)
-		addr := result["addr"].(string)
 		devType := result["type"].(string)
+		addr := result["addr"].(primitive.Binary).Data
 		// Add to array
 		devices = append(devices, Device{Addr: addr, Name: name, Type: devType})
 	}
 	return devices
 }
 
-func addDevice(collection *mongo.Collection, device Device) {
+func insertDevice(collection *mongo.Collection, device Device) {
 	collection.InsertOne(context.TODO(), device)
 }
 
@@ -81,7 +81,7 @@ func getAppKeys(collection *mongo.Collection) []mesh.AppKey {
 	return keys
 }
 
-func addAppKey(collection *mongo.Collection, key mesh.AppKey) {
+func insertAppKey(collection *mongo.Collection, key mesh.AppKey) {
 	collection.InsertOne(context.TODO(), key)
 }
 
@@ -101,6 +101,6 @@ func getDevKeys(collection *mongo.Collection) []mesh.DevKey {
 	return keys
 }
 
-func addDevKey(collection *mongo.Collection, key mesh.DevKey) {
+func insertDevKey(collection *mongo.Collection, key mesh.DevKey) {
 	collection.InsertOne(context.TODO(), key)
 }

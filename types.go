@@ -3,8 +3,8 @@ package main
 // Device holds the name addr and type of device
 type Device struct {
 	Name string
-	Addr string
 	Type string
+	Addr []byte
 }
 
 // NetData used for sending msgs and adding new devices

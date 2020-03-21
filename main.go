@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
+	"github.com/go-ble/ble"
 	"github.com/samsarahq/thunder/graphql"
 	"github.com/samsarahq/thunder/graphql/introspection"
 	"go.mongodb.org/mongo-driver/bson"
@@ -17,13 +18,17 @@ var (
 	appKeysCollection *mongo.Collection
 	devKeysCollection *mongo.Collection
 	netCollection     *mongo.Collection
+	write             *ble.Characteristic
+	cln               ble.Client
 	netData           NetData
+	messages          = make(chan []byte)
+	// devKey            = []byte{0x96, 0x4a, 0xf6, 0xfc, 0x03, 0x38, 0x8c, 0x73, 0xea, 0xff, 0x94, 0x61, 0x57, 0xff, 0x66, 0x01}
 )
 
 func main() {
 	// Get ref to collections
 	devicesCollection = getCollection("devices")
-	appKeysCollection := getCollection("appKeys")
+	appKeysCollection = getCollection("appKeys")
 	devKeysCollection = getCollection("devKeys")
 	netCollection = getCollection("net")
 	// Delete all objects
@@ -32,14 +37,16 @@ func main() {
 	devKeysCollection.DeleteMany(context.TODO(), bson.D{})
 	netCollection.DeleteMany(context.TODO(), bson.D{})
 	// Add and get net data
-	addNetData(netCollection, NetData{NetKey: netKey, NetKeyIndex: []byte{0x00, 0x00}, Flags: []byte{0x00}, IvIndex: []byte{0x00, 0x00, 0x00, 0x00}, NextDevAddr: []byte{0x00, 0x00}})
+	insertNetData(netCollection, NetData{NetKey: netKey, NetKeyIndex: []byte{0x00, 0x00}, Flags: []byte{0x00}, IvIndex: []byte{0x00, 0x00, 0x00, 0x00}, NextDevAddr: []byte{0x00, 0x01}})
 	netData = getNetData(netCollection)
 	// Add and get App Keys
-	addAppKey(appKeysCollection, mesh.AppKey{Aid: []byte{0x21}, Key: netKey, KeyIndex: []byte{0x01, 0x02}})
+	insertAppKey(appKeysCollection, mesh.AppKey{Aid: []byte{0x21}, Key: netKey, KeyIndex: []byte{0x01, 0x02}})
 	getAppKeys(appKeysCollection)
 	// Add and get Dev Keys
-	addDevKey(devKeysCollection, mesh.DevKey{Addr: []byte{0x00, 0x01}, Key: netKey})
+	insertDevKey(devKeysCollection, mesh.DevKey{Addr: []byte{0x00, 0x01}, Key: netKey})
 	getDevKeys(devKeysCollection)
+	// Connect and get write characteristic
+	cln, write = connectToProxy()
 	// Build schema
 	schema := schema()
 	introspection.AddIntrospectionToSchema(schema)
