@@ -70,13 +70,11 @@ func getAppKeys(collection *mongo.Collection) []mesh.AppKey {
 	cur, _ := collection.Find(context.TODO(), bson.D{})
 	// Deserialize into array of app keys
 	for cur.Next(context.TODO()) {
-		var result bson.M
+		var result mesh.AppKey
 		cur.Decode(&result)
-		aid := result["aid"].(primitive.Binary).Data
-		key := result["key"].(primitive.Binary).Data
-		keyIndex := result["keyindex"].(primitive.Binary).Data
+
 		// Add to array
-		keys = append(keys, mesh.AppKey{Aid: aid, Key: key, KeyIndex: keyIndex})
+		keys = append(keys, result)
 	}
 	return keys
 }

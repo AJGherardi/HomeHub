@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
-	mesh "github.com/AJGherardi/GoMeshCryptro"
 	"github.com/go-ble/ble"
 	"github.com/samsarahq/thunder/graphql"
 	"github.com/samsarahq/thunder/graphql/introspection"
@@ -40,13 +40,14 @@ func main() {
 	insertNetData(netCollection, NetData{NetKey: netKey, NetKeyIndex: []byte{0x00, 0x00}, Flags: []byte{0x00}, IvIndex: []byte{0x00, 0x00, 0x00, 0x00}, NextDevAddr: []byte{0x00, 0x01}})
 	netData = getNetData(netCollection)
 	// Add and get App Keys
-	insertAppKey(appKeysCollection, mesh.AppKey{Aid: []byte{0x21}, Key: netKey, KeyIndex: []byte{0x01, 0x02}})
-	getAppKeys(appKeysCollection)
+	// insertAppKey(appKeysCollection, mesh.AppKey{Aid: []byte{0x21}, Key: netKey, KeyIndex: []byte{0x01, 0x02}})
+	// getAppKeys(appKeysCollection)
 	// Add and get Dev Keys
-	insertDevKey(devKeysCollection, mesh.DevKey{Addr: []byte{0x00, 0x01}, Key: netKey})
+	// insertDevKey(devKeysCollection, mesh.DevKey{Addr: []byte{0x00, 0x01}, Key: netKey})
 	getDevKeys(devKeysCollection)
 	// Connect and get write characteristic
 	cln, write = connectToProxy()
+	fmt.Println("con")
 	// Build schema
 	schema := schema()
 	introspection.AddIntrospectionToSchema(schema)

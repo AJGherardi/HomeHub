@@ -35,30 +35,45 @@ func registerMutation(schema *schemabuilder.Schema) {
 		seq := []byte{0x00, 0x00, 0x00}
 		// Decode the dev key
 		devKey := decodeBase64(args.DevKey)
+		insertDevKey(devKeysCollection, mesh.DevKey{Addr: netData.NextDevAddr, Key: devKey})
 		// Generate an app key
 		appKey := make([]byte, 16)
 		rand.Read(appKey)
+		aid := mesh.GetAid(appKey)
+		insertAppKey(appKeysCollection, mesh.AppKey{Aid: []byte{aid}, Key: appKey})
 		// Send app key add
 		addPayload := append([]byte{0x00, 0x00, 0x30, 0x00}, appKey...)
 		addMsg, seq := mesh.EncodeAccessMsg(mesh.DevMsg, seq, src, netData.NextDevAddr, ttl, netData.IvIndex, devKey, netKey, addPayload)
 		sendProxyPdu(cln, write, addMsg)
 		res := <-messages
-		fmt.Printf("Res1 %x \n", res)
+		fmt.Printf("add %x \n", res)
 		// Send app key bind
 		bindPayload := []byte{0x80, 0x3d, 0x01, 0x00, 0x03, 0x00, 0x00, 0x10}
 		bindMsg, seq := mesh.EncodeAccessMsg(mesh.DevMsg, seq, src, netData.NextDevAddr, ttl, netData.IvIndex, devKey, netKey, bindPayload)
 		sendProxyPdu(cln, write, bindMsg)
 		res = <-messages
-		fmt.Printf("Res2 %x \n", res)
+		fmt.Printf("bind %x \n", res)
+		bindPayload2 := []byte{0x80, 0x3d, 0x01, 0x00, 0x03, 0x00, 0x12, 0x13}
+		bindMsg2, seq := mesh.EncodeAccessMsg(mesh.DevMsg, seq, src, netData.NextDevAddr, ttl, netData.IvIndex, devKey, netKey, bindPayload2)
+		sendProxyPdu(cln, write, bindMsg2)
+		res = <-messages
+		fmt.Printf("bind %x \n", res)
+		// Get model id
+		compPayload := []byte{0x80, 0x50}
+		compMsg, seq := mesh.EncodeAccessMsg(mesh.AppMsg, seq, src, netData.NextDevAddr, ttl, netData.IvIndex, appKey, netKey, compPayload)
+		sendProxyPdu(cln, write, compMsg)
+		res = <-messages
+		fmt.Printf("comp %x \n", res)
 		// Send onoff set
 		onoffPayload := []byte{0x82, 0x02, 0x01, 0x00}
 		onoffMsg, seq := mesh.EncodeAccessMsg(mesh.AppMsg, seq, src, netData.NextDevAddr, ttl, netData.IvIndex, appKey, netKey, onoffPayload)
 		sendProxyPdu(cln, write, onoffMsg)
 		res = <-messages
-		fmt.Printf("Res3 %x \n", res)
-		// Save keys and data
-		insertDevKey(devKeysCollection, mesh.DevKey{Addr: netData.NextDevAddr, Key: devKey})
-		insertDevice(devicesCollection, Device{Type: args.DevType, Name: args.Name, Addr: netData.NextDevAddr})
+		fmt.Printf("onoff %x \n", res)
+
+		// // Save keys and data
+		// insertAppKey(appKeysCollection, mesh.AppKey{Aid: []byte{aid}, Key: appKey})
+		// insertDevice(devicesCollection, Device{Type: args.DevType, Name: args.Name, Addr: netData.NextDevAddr})
 		return Device{Type: args.DevType, Name: args.Name}
 	})
 }
