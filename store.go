@@ -5,7 +5,6 @@ import (
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -27,16 +26,9 @@ func getNetData(collection *mongo.Collection) NetData {
 	cur, _ := collection.Find(context.TODO(), bson.D{})
 	// Deserialize first result
 	cur.Next(context.TODO())
-	var result bson.M
+	var result NetData
 	cur.Decode(&result)
-	netKey := result["netkey"].(primitive.Binary).Data
-	netKeyIndex := result["netkeyindex"].(primitive.Binary).Data
-	flags := result["flags"].(primitive.Binary).Data
-	ivIndex := result["ivindex"].(primitive.Binary).Data
-	nextDevAddr := result["nextdevaddr"].(primitive.Binary).Data
-	// Build net data struct
-	netData := NetData{NetKey: netKey, NetKeyIndex: netKeyIndex, Flags: flags, IvIndex: ivIndex, NextDevAddr: nextDevAddr}
-	return netData
+	return result
 }
 
 func insertNetData(collection *mongo.Collection, data NetData) {
@@ -49,13 +41,10 @@ func getDevices(collection *mongo.Collection) []Device {
 	cur, _ := collection.Find(context.TODO(), bson.D{})
 	// Deserialize into array of devices
 	for cur.Next(context.TODO()) {
-		var result bson.M
+		var result Device
 		cur.Decode(&result)
-		name := result["name"].(string)
-		devType := result["type"].(string)
-		addr := result["addr"].(primitive.Binary).Data
 		// Add to array
-		devices = append(devices, Device{Addr: addr, Name: name, Type: devType})
+		devices = append(devices, result)
 	}
 	return devices
 }
@@ -89,12 +78,10 @@ func getDevKeys(collection *mongo.Collection) []mesh.DevKey {
 	cur, _ := collection.Find(context.TODO(), bson.D{})
 	// Deserialize into array of dev keys
 	for cur.Next(context.TODO()) {
-		var result bson.M
+		var result mesh.DevKey
 		cur.Decode(&result)
-		addr := result["addr"].(primitive.Binary).Data
-		key := result["key"].(primitive.Binary).Data
 		// Add to array
-		keys = append(keys, mesh.DevKey{Addr: addr, Key: key})
+		keys = append(keys, result)
 	}
 	return keys
 }
