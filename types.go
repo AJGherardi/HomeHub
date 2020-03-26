@@ -14,6 +14,7 @@ type NetData struct {
 	Flags       []byte
 	IvIndex     []byte
 	NextDevAddr []byte
+	HubSeq      []byte
 }
 
 // ProvData holds all data needed to setup a device in base64

@@ -22,7 +22,6 @@ var (
 	cln               ble.Client
 	netData           NetData
 	messages          = make(chan []byte)
-	// devKey            = []byte{0x96, 0x4a, 0xf6, 0xfc, 0x03, 0x38, 0x8c, 0x73, 0xea, 0xff, 0x94, 0x61, 0x57, 0xff, 0x66, 0x01}
 )
 
 func main() {
@@ -37,14 +36,15 @@ func main() {
 	devKeysCollection.DeleteMany(context.TODO(), bson.D{})
 	netCollection.DeleteMany(context.TODO(), bson.D{})
 	// Add and get net data
-	insertNetData(netCollection, NetData{NetKey: netKey, NetKeyIndex: []byte{0x00, 0x00}, Flags: []byte{0x00}, IvIndex: []byte{0x00, 0x00, 0x00, 0x00}, NextDevAddr: []byte{0x00, 0x01}})
+	insertNetData(netCollection, NetData{
+		NetKey:      netKey,
+		NetKeyIndex: []byte{0x00, 0x00},
+		Flags:       []byte{0x00},
+		IvIndex:     []byte{0x00, 0x00, 0x00, 0x00},
+		NextDevAddr: []byte{0x00, 0x01},
+		HubSeq:      []byte{0x00, 0x00, 0x00},
+	})
 	netData = getNetData(netCollection)
-	// Add and get App Keys
-	// insertAppKey(appKeysCollection, mesh.AppKey{Aid: []byte{0x21}, Key: netKey, KeyIndex: []byte{0x01, 0x02}})
-	// getAppKeys(appKeysCollection)
-	// Add and get Dev Keys
-	// insertDevKey(devKeysCollection, mesh.DevKey{Addr: []byte{0x00, 0x01}, Key: netKey})
-	getDevKeys(devKeysCollection)
 	// Connect and get write characteristic
 	cln, write = connectToProxy()
 	fmt.Println("con")
