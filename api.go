@@ -18,13 +18,7 @@ func registerQuery(schema *schemabuilder.Schema) {
 		return getDevices(devicesCollection)
 	})
 	obj.FieldFunc("getProvData", func() ProvData {
-		return encodeProvData(
-			netData.NetKey,
-			netData.NetKeyIndex,
-			netData.Flags,
-			netData.IvIndex,
-			netData.NextDevAddr,
-		)
+		return encodeProvData(netData.NetKey, netData.NetKeyIndex, netData.Flags, netData.IvIndex, netData.NextDevAddr)
 	})
 }
 
@@ -57,7 +51,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 			ttl,
 			netData.IvIndex,
 			devKey,
-			netKey,
+			netData.NetKey,
 			addPayload,
 		)
 		sendProxyPdu(cln, write, addMsg)
@@ -73,7 +67,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 			ttl,
 			netData.IvIndex,
 			devKey,
-			netKey,
+			netData.NetKey,
 			bindPayload,
 		)
 		sendProxyPdu(cln, write, bindMsg)
@@ -88,7 +82,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 			ttl,
 			netData.IvIndex,
 			devKey,
-			netKey,
+			netData.NetKey,
 			bindPayload2,
 		)
 		sendProxyPdu(cln, write, bindMsg2)
@@ -104,7 +98,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 			ttl,
 			netData.IvIndex,
 			appKey,
-			netKey,
+			netData.NetKey,
 			compPayload,
 		)
 		sendProxyPdu(cln, write, compMsg)
@@ -120,7 +114,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 			ttl,
 			netData.IvIndex,
 			appKey,
-			netKey,
+			netData.NetKey,
 			onoffPayload,
 		)
 		sendProxyPdu(cln, write, onoffMsg)

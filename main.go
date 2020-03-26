@@ -9,11 +9,11 @@ import (
 	"github.com/samsarahq/thunder/graphql"
 	"github.com/samsarahq/thunder/graphql/introspection"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var (
-	netKey            = []byte{0xaf, 0xc3, 0x27, 0x0e, 0xda, 0x88, 0x02, 0xf7, 0x2c, 0x1e, 0x53, 0x24, 0x38, 0xa9, 0x79, 0xeb}
 	devicesCollection *mongo.Collection
 	appKeysCollection *mongo.Collection
 	devKeysCollection *mongo.Collection
@@ -37,7 +37,8 @@ func main() {
 	netCollection.DeleteMany(context.TODO(), bson.D{})
 	// Add and get net data
 	insertNetData(netCollection, NetData{
-		NetKey:      netKey,
+		ID:          primitive.NewObjectID(),
+		NetKey:      []byte{0xaf, 0xc3, 0x27, 0x0e, 0xda, 0x88, 0x02, 0xf7, 0x2c, 0x1e, 0x53, 0x24, 0x38, 0xa9, 0x79, 0xeb},
 		NetKeyIndex: []byte{0x00, 0x00},
 		Flags:       []byte{0x00},
 		IvIndex:     []byte{0x00, 0x00, 0x00, 0x00},

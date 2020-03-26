@@ -1,5 +1,7 @@
 package main
 
+import "go.mongodb.org/mongo-driver/bson/primitive"
+
 // Device holds the name addr and type of device
 type Device struct {
 	Name string
@@ -9,6 +11,7 @@ type Device struct {
 
 // NetData used for sending msgs and adding new devices
 type NetData struct {
+	ID          primitive.ObjectID `bson:"_id"`
 	NetKey      []byte
 	NetKeyIndex []byte
 	Flags       []byte

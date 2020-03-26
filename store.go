@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
 	"go.mongodb.org/mongo-driver/bson"
@@ -28,11 +29,27 @@ func getNetData(collection *mongo.Collection) NetData {
 	cur.Next(context.TODO())
 	var result NetData
 	cur.Decode(&result)
+	fmt.Println(result)
 	return result
 }
 
 func insertNetData(collection *mongo.Collection, data NetData) {
 	collection.InsertOne(context.TODO(), data)
+}
+
+func updateNetData(collection *mongo.Collection, data NetData) {
+	collection.UpdateOne(
+		context.TODO(),
+		bson.M{"_id": data.ID},
+		bson.M{"$set": bson.M{
+			"netkey":      data.NetKey,
+			"netkeyindex": data.NetKeyIndex,
+			"flags":       data.Flags,
+			"ivindex":     data.IvIndex,
+			"nextdevaddr": data.NextDevAddr,
+			"hubseq":      data.HubSeq,
+		}},
+	)
 }
 
 func getDevices(collection *mongo.Collection) []Device {
