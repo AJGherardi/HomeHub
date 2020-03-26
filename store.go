@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
 	"go.mongodb.org/mongo-driver/bson"
@@ -29,7 +28,6 @@ func getNetData(collection *mongo.Collection) NetData {
 	cur.Next(context.TODO())
 	var result NetData
 	cur.Decode(&result)
-	fmt.Println(result)
 	return result
 }
 
@@ -52,6 +50,43 @@ func updateNetData(collection *mongo.Collection, data NetData) {
 	)
 }
 
+func getGroups(collection *mongo.Collection) []Group {
+	var groups []Group
+	// Get all Devices
+	cur, _ := collection.Find(context.TODO(), bson.D{})
+	// Deserialize into array of Groups
+	for cur.Next(context.TODO()) {
+		var result Group
+		cur.Decode(&result)
+		// Add to array
+		groups = append(groups, result)
+	}
+	return groups
+}
+
+func getGroupByAddr(collection *mongo.Collection, addr []byte) Group {
+	var group Group
+	result := collection.FindOne(context.TODO(), bson.M{"addr": addr})
+	result.Decode(&group)
+	return group
+}
+
+func insertGroup(collection *mongo.Collection, group Group) {
+	collection.InsertOne(context.TODO(), group)
+}
+
+func updateGroup(collection *mongo.Collection, group Group) {
+	collection.UpdateOne(
+		context.TODO(),
+		bson.M{"addr": group.Addr},
+		bson.M{"$set": bson.M{
+			"aid":      group.Aid,
+			"name":     group.Name,
+			"devaddrs": group.DevAddrs,
+		}},
+	)
+}
+
 func getDevices(collection *mongo.Collection) []Device {
 	var devices []Device
 	// Get all Devices
@@ -70,6 +105,20 @@ func insertDevice(collection *mongo.Collection, device Device) {
 	collection.InsertOne(context.TODO(), device)
 }
 
+func updateDevice(collection *mongo.Collection, data Device) {
+	collection.UpdateOne(
+		context.TODO(),
+		bson.M{"addr": data.Addr},
+		bson.M{"$set": bson.M{
+			"name":      data.Name,
+			"addr":      data.Addr,
+			"type":      data.Type,
+			"seq":       data.Seq,
+			"elemaddrs": data.ElemAddrs,
+		}},
+	)
+}
+
 func getAppKeys(collection *mongo.Collection) []mesh.AppKey {
 	var keys []mesh.AppKey
 	// Get all keys
@@ -78,11 +127,17 @@ func getAppKeys(collection *mongo.Collection) []mesh.AppKey {
 	for cur.Next(context.TODO()) {
 		var result mesh.AppKey
 		cur.Decode(&result)
-
 		// Add to array
 		keys = append(keys, result)
 	}
 	return keys
+}
+
+func getAppKeyByAid(collection *mongo.Collection, aid []byte) mesh.AppKey {
+	var key mesh.AppKey
+	result := collection.FindOne(context.TODO(), bson.M{"aid": aid})
+	result.Decode(&key)
+	return key
 }
 
 func insertAppKey(collection *mongo.Collection, key mesh.AppKey) {

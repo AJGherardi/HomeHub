@@ -6,6 +6,8 @@ github.com/AJGherardi/GoMeshCryptro v0.0.0-20200319234538-a04d6f2920c8 h1:CmUO2n
 github.com/AJGherardi/GoMeshCryptro v0.0.0-20200319234538-a04d6f2920c8/go.mod h1:gBTtfeP+2rtwyHjWmS2FPUickj++OUjD5gc/ayhtHEk=
 github.com/AJGherardi/GoMeshCryptro v0.0.0-20200322161635-5424a2955956 h1:NE6I6CbXsmIDRkf6cVPmdOOrXENSwuIeyHUgNHe573A=
 github.com/AJGherardi/GoMeshCryptro v0.0.0-20200322161635-5424a2955956/go.mod h1:gBTtfeP+2rtwyHjWmS2FPUickj++OUjD5gc/ayhtHEk=
+github.com/AJGherardi/GoMeshCryptro v0.0.0-20200325222500-3c7e8d128ed8 h1:Xh51D2kIESEXjoUJg1kNfn5BaCNooS5SKI85D7XkZJo=
+github.com/AJGherardi/GoMeshCryptro v0.0.0-20200325222500-3c7e8d128ed8/go.mod h1:gBTtfeP+2rtwyHjWmS2FPUickj++OUjD5gc/ayhtHEk=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/andreburgaud/crypt2go v0.0.0-20190506042608-9396ccdf73c8 h1:PKRrINFp0BUHIoft3kpFaGEuzSKH8keNNicD31CcBZ4=
 github.com/andreburgaud/crypt2go v0.0.0-20190506042608-9396ccdf73c8/go.mod h1:cDNAOjEkqSjkeLW3ZUukzIbUscxyaAiuQNOXYZZ+2E0=
