@@ -12,19 +12,19 @@ type Group struct {
 
 // Device holds the name addr and type of device
 type Device struct {
-	Name      string
-	Type      string
-	Addr      []byte
-	Seq       []byte
-	ElemAddrs [][]byte
+	Name     string
+	Type     string
+	Addr     []byte
+	Seq      []byte
+	Elements []Element
 }
 
-// // Element holds an elements addr and its state
-// type Element struct {
-// 	Addr      []byte
-// 	StateType string
-// 	State     interface{}
-// }
+// Element holds an elements addr and its state
+type Element struct {
+	Addr      []byte
+	State     []byte
+	StateType string
+}
 
 // NetData used for sending msgs and adding new devices
 type NetData struct {
@@ -33,7 +33,7 @@ type NetData struct {
 	NetKeyIndex   []byte
 	Flags         []byte
 	IvIndex       []byte
-	NextDevAddr   []byte
+	NextAddr      []byte
 	NextGroupAddr []byte
 	HubSeq        []byte
 }

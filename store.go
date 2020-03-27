@@ -40,12 +40,13 @@ func updateNetData(collection *mongo.Collection, data NetData) {
 		context.TODO(),
 		bson.M{"_id": data.ID},
 		bson.M{"$set": bson.M{
-			"netkey":      data.NetKey,
-			"netkeyindex": data.NetKeyIndex,
-			"flags":       data.Flags,
-			"ivindex":     data.IvIndex,
-			"nextdevaddr": data.NextDevAddr,
-			"hubseq":      data.HubSeq,
+			"netkey":        data.NetKey,
+			"netkeyindex":   data.NetKeyIndex,
+			"flags":         data.Flags,
+			"ivindex":       data.IvIndex,
+			"nextaddr":      data.NextAddr,
+			"nextgroupaddr": data.NextGroupAddr,
+			"hubseq":        data.HubSeq,
 		}},
 	)
 }
@@ -110,11 +111,11 @@ func updateDevice(collection *mongo.Collection, data Device) {
 		context.TODO(),
 		bson.M{"addr": data.Addr},
 		bson.M{"$set": bson.M{
-			"name":      data.Name,
-			"addr":      data.Addr,
-			"type":      data.Type,
-			"seq":       data.Seq,
-			"elemaddrs": data.ElemAddrs,
+			"name":     data.Name,
+			"addr":     data.Addr,
+			"type":     data.Type,
+			"seq":      data.Seq,
+			"elements": data.Elements,
 		}},
 	)
 }

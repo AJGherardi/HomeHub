@@ -1,6 +1,9 @@
 package main
 
-import "encoding/base64"
+import (
+	"encoding/base64"
+	"encoding/binary"
+)
 
 func encodeBase64(bytes []byte) string {
 	return base64.StdEncoding.EncodeToString(bytes)
@@ -24,4 +27,15 @@ func encodeProvData(netKey []byte, keyIndex []byte, flags []byte, ivIndex []byte
 		IvIndex:     ivIndexB64,
 		NextDevAddr: devAddrB64,
 	}
+}
+
+func incrementAddr(imput []byte) []byte {
+	// Convert to uint16
+	short := binary.BigEndian.Uint16(imput)
+	// Increment
+	short++
+	// Convert back to byte slice
+	output := make([]byte, 2)
+	binary.BigEndian.PutUint16(output, short)
+	return output
 }

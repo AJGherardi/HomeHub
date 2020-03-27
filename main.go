@@ -14,16 +14,15 @@ import (
 )
 
 var (
-	groupsCollection   *mongo.Collection
-	devicesCollection  *mongo.Collection
-	elementsCollection *mongo.Collection
-	appKeysCollection  *mongo.Collection
-	devKeysCollection  *mongo.Collection
-	netCollection      *mongo.Collection
-	write              *ble.Characteristic
-	cln                ble.Client
-	netData            NetData
-	messages           = make(chan []byte)
+	groupsCollection  *mongo.Collection
+	devicesCollection *mongo.Collection
+	appKeysCollection *mongo.Collection
+	devKeysCollection *mongo.Collection
+	netCollection     *mongo.Collection
+	write             *ble.Characteristic
+	cln               ble.Client
+	netData           NetData
+	messages          = make(chan []byte)
 )
 
 func main() {
@@ -49,7 +48,7 @@ func main() {
 		NetKeyIndex:   []byte{0x00, 0x00},
 		Flags:         []byte{0x00},
 		IvIndex:       []byte{0x00, 0x00, 0x00, 0x00},
-		NextDevAddr:   []byte{0x00, 0x01},
+		NextAddr:      []byte{0x00, 0x01},
 		NextGroupAddr: []byte{0xc0, 0x00},
 		HubSeq:        []byte{0x00, 0x00, 0x00},
 	})

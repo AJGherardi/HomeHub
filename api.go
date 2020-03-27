@@ -23,7 +23,7 @@ func registerQuery(schema *schemabuilder.Schema) {
 			netData.NetKeyIndex,
 			netData.Flags,
 			netData.IvIndex,
-			netData.NextDevAddr,
+			netData.NextAddr,
 		)
 	})
 }
@@ -38,22 +38,22 @@ func registerMutation(schema *schemabuilder.Schema) {
 		// Message vars
 		src := []byte{0x12, 0x34}
 		ttl := byte(0x04)
-		seq := []byte{0x00, 0x00, 0x00}
+		seq := netData.HubSeq
 		// Get group
 		groupAddr := decodeBase64(args.Addr)
 		group := getGroupByAddr(groupsCollection, groupAddr)
 		// Get app key
-		appKey := getAppKeyByAid(appKeysCollection, group.Aid).Key
+		appKey := getAppKeyByAid(appKeysCollection, group.Aid)
 		// Decode the dev key
 		devKey := decodeBase64(args.DevKey)
-		insertDevKey(devKeysCollection, mesh.DevKey{Addr: netData.NextDevAddr, Key: devKey})
+		insertDevKey(devKeysCollection, mesh.DevKey{Addr: netData.NextAddr, Key: devKey})
 		// Send app key add
-		addPayload := append([]byte{0x00, 0x00, 0x30, 0x00}, appKey...)
+		addPayload := append([]byte{0x00, 0x00, 0x30, 0x00}, appKey.Key...)
 		addMsg, seq := mesh.EncodeAccessMsg(
 			mesh.DevMsg,
 			seq,
 			src,
-			netData.NextDevAddr,
+			netData.NextAddr,
 			ttl,
 			netData.IvIndex,
 			devKey,
@@ -69,7 +69,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 			mesh.DevMsg,
 			seq,
 			src,
-			netData.NextDevAddr,
+			netData.NextAddr,
 			ttl,
 			netData.IvIndex,
 			devKey,
@@ -84,7 +84,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 			mesh.DevMsg,
 			seq,
 			src,
-			netData.NextDevAddr,
+			netData.NextAddr,
 			ttl,
 			netData.IvIndex,
 			devKey,
@@ -100,26 +100,28 @@ func registerMutation(schema *schemabuilder.Schema) {
 			mesh.AppMsg,
 			seq,
 			src,
-			netData.NextDevAddr,
+			netData.NextAddr,
 			ttl,
 			netData.IvIndex,
-			appKey,
+			appKey.Key,
 			netData.NetKey,
 			compPayload,
 		)
 		sendProxyPdu(cln, write, compMsg)
 		res = <-messages
 		fmt.Printf("comp %x \n", res)
+		// Update net data
+		netData.HubSeq = seq
+		netData.NextAddr = incrementAddr(netData.NextAddr)
+		updateNetData(netCollection, netData)
 		// Save Device
 		insertDevice(devicesCollection, Device{
 			Name: args.Name,
-			Addr: netData.NextDevAddr,
+			Addr: netData.NextAddr,
 		})
 		// Add device to group
-		group.DevAddrs = append(group.DevAddrs, netData.NextDevAddr)
+		group.DevAddrs = append(group.DevAddrs, netData.NextAddr)
 		updateGroup(groupsCollection, group)
-		// Testing only
-		fmt.Println(getGroups(groupsCollection))
 		return Device{Name: args.Name}
 	})
 	obj.FieldFunc("addGroup", func(args struct{ Name string }) Group {
@@ -134,6 +136,8 @@ func registerMutation(schema *schemabuilder.Schema) {
 			Addr: netData.NextGroupAddr,
 			Aid:  []byte{aid}},
 		)
+		netData.NextGroupAddr = incrementAddr(netData.NextGroupAddr)
+		updateNetData(netCollection, netData)
 		return Group{Name: args.Name, Addr: netData.NextGroupAddr}
 	})
 }
