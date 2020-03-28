@@ -12,6 +12,8 @@ import (
 	"github.com/samsarahq/thunder/graphql"
 	"github.com/samsarahq/thunder/graphql/schemabuilder"
 	"github.com/samsarahq/thunder/reactive"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func registerQuery(schema *schemabuilder.Schema) {
@@ -236,6 +238,36 @@ func registerMutation(schema *schemabuilder.Schema) {
 		}
 		updateDevice(devicesCollection, device)
 		return device.Elements[args.ElemNumber].State
+	})
+	obj.FieldFunc("configHub", func() string {
+		// Clean house
+		groupsCollection.DeleteMany(context.TODO(), bson.D{})
+		devicesCollection.DeleteMany(context.TODO(), bson.D{})
+		webKeysCollection.DeleteMany(context.TODO(), bson.D{})
+		appKeysCollection.DeleteMany(context.TODO(), bson.D{})
+		devKeysCollection.DeleteMany(context.TODO(), bson.D{})
+		netCollection.DeleteMany(context.TODO(), bson.D{})
+		// Add and get net data
+		insertNetData(netCollection, NetData{
+			ID: primitive.NewObjectID(),
+			NetKey: []byte{0xaf, 0xc3, 0x27, 0x0e, 0xda,
+				0x88, 0x02, 0xf7, 0x2c, 0x1e, 0x53,
+				0x24, 0x38, 0xa9, 0x79, 0xeb,
+			},
+			NetKeyIndex:     []byte{0x00, 0x00},
+			NextAppKeyIndex: []byte{0x01, 0x00},
+			Flags:           []byte{0x00},
+			IvIndex:         []byte{0x00, 0x00, 0x00, 0x00},
+			NextAddr:        []byte{0x00, 0x01},
+			NextGroupAddr:   []byte{0xc0, 0x00},
+			HubSeq:          []byte{0x00, 0x00, 0x00},
+		})
+		netData = getNetData(netCollection)
+		// Make and store a web key
+		webKey := make([]byte, 16)
+		rand.Read(webKey)
+		insertWebKey(webKeysCollection, webKey)
+		return encodeBase64(webKey)
 	})
 }
 

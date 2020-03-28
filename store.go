@@ -194,3 +194,21 @@ func getDevKeyByAddr(collection *mongo.Collection, addr []byte) mesh.DevKey {
 func insertDevKey(collection *mongo.Collection, key mesh.DevKey) {
 	collection.InsertOne(context.TODO(), key)
 }
+
+func checkWebKey(collection *mongo.Collection, key []byte) bool {
+	// Get all keys
+	cur, _ := collection.Find(context.TODO(), bson.D{})
+	// Deserialize into array of web keys
+	for cur.Next(context.TODO()) {
+		var result []byte
+		cur.Decode(&result)
+		if reflect.DeepEqual(result, key) {
+			return true
+		}
+	}
+	return false
+}
+
+func insertWebKey(collection *mongo.Collection, key []byte) {
+	collection.InsertOne(context.TODO(), key)
+}
