@@ -49,7 +49,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		devKey := decodeBase64(args.DevKey)
 		insertDevKey(devKeysCollection, mesh.DevKey{Addr: netData.NextAddr, Key: devKey})
 		// Send app key add
-		addPayload := models.AppKeyAdd(netData.NetKeyIndex, []byte{0x01, 0x00}, appKey.Key)
+		addPayload := models.AppKeyAdd(netData.NetKeyIndex, appKey.KeyIndex, appKey.Key)
 		addMsg, seq := mesh.EncodeAccessMsg(
 			mesh.DevMsg,
 			seq,
@@ -65,7 +65,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		res := <-messages
 		fmt.Printf("add %x \n", res)
 		// Send app key bind
-		bindPayload := models.AppKeyBind(netData.NextAddr, []byte{0x01, 0x00}, []byte{0x10, 0x00})
+		bindPayload := models.AppKeyBind(netData.NextAddr, appKey.KeyIndex, []byte{0x10, 0x00})
 		bindMsg, seq := mesh.EncodeAccessMsg(
 			mesh.DevMsg,
 			seq,
@@ -80,7 +80,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		sendProxyPdu(cln, write, bindMsg)
 		res = <-messages
 		fmt.Printf("bind %x \n", res)
-		bindPayload2 := models.AppKeyBind(netData.NextAddr, []byte{0x01, 0x00}, []byte{0x13, 0x12})
+		bindPayload2 := models.AppKeyBind(netData.NextAddr, appKey.KeyIndex, []byte{0x13, 0x12})
 		bindMsg2, seq := mesh.EncodeAccessMsg(
 			mesh.DevMsg,
 			seq,
@@ -130,14 +130,20 @@ func registerMutation(schema *schemabuilder.Schema) {
 		appKey := make([]byte, 16)
 		rand.Read(appKey)
 		aid := mesh.GetAid(appKey)
-		insertAppKey(appKeysCollection, mesh.AppKey{Aid: []byte{aid}, Key: appKey})
+		insertAppKey(appKeysCollection, mesh.AppKey{
+			Aid:      []byte{aid},
+			Key:      appKey,
+			KeyIndex: netData.NetKeyIndex,
+		})
 		// Add a group
 		insertGroup(groupsCollection, Group{
 			Name: args.Name,
 			Addr: netData.NextGroupAddr,
 			Aid:  []byte{aid}},
 		)
+		// Update net data
 		netData.NextGroupAddr = incrementAddr(netData.NextGroupAddr)
+		netData.NextAppKeyIndex = models.IncrementKeyIndex(netData.NextAppKeyIndex)
 		updateNetData(netCollection, netData)
 		return Group{Name: args.Name, Addr: netData.NextGroupAddr}
 	})

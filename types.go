@@ -28,14 +28,15 @@ type Element struct {
 
 // NetData used for sending msgs and adding new devices
 type NetData struct {
-	ID            primitive.ObjectID `bson:"_id"`
-	NetKey        []byte
-	NetKeyIndex   []byte
-	Flags         []byte
-	IvIndex       []byte
-	NextAddr      []byte
-	NextGroupAddr []byte
-	HubSeq        []byte
+	ID              primitive.ObjectID `bson:"_id"`
+	NetKey          []byte
+	NetKeyIndex     []byte
+	NextAppKeyIndex []byte
+	Flags           []byte
+	IvIndex         []byte
+	NextAddr        []byte
+	NextGroupAddr   []byte
+	HubSeq          []byte
 }
 
 // ProvData holds all data needed to setup a device in base64

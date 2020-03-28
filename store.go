@@ -40,13 +40,14 @@ func updateNetData(collection *mongo.Collection, data NetData) {
 		context.TODO(),
 		bson.M{"_id": data.ID},
 		bson.M{"$set": bson.M{
-			"netkey":        data.NetKey,
-			"netkeyindex":   data.NetKeyIndex,
-			"flags":         data.Flags,
-			"ivindex":       data.IvIndex,
-			"nextaddr":      data.NextAddr,
-			"nextgroupaddr": data.NextGroupAddr,
-			"hubseq":        data.HubSeq,
+			"netkey":          data.NetKey,
+			"netkeyindex":     data.NetKeyIndex,
+			"nextappkeyindex": data.NextAppKeyIndex,
+			"flags":           data.Flags,
+			"ivindex":         data.IvIndex,
+			"nextaddr":        data.NextAddr,
+			"nextgroupaddr":   data.NextGroupAddr,
+			"hubseq":          data.HubSeq,
 		}},
 	)
 }

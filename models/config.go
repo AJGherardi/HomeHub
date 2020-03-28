@@ -24,6 +24,18 @@ func AppKeyBind(addr []byte, appIndex []byte, modelID []byte) []byte {
 	return payload
 }
 
+// IncrementKeyIndex increments an key index
+func IncrementKeyIndex(imput []byte) []byte {
+	// Convert to uint16
+	index := binary.LittleEndian.Uint16(imput)
+	// Increment
+	index++
+	// Convert back to byte slice
+	output := make([]byte, 2)
+	binary.LittleEndian.PutUint16(output, index)
+	return output
+}
+
 func encodeKeyIndices(netIndex []byte, appIndex []byte) []byte {
 	// Remove Padding
 	netInt := binary.LittleEndian.Uint16(netIndex)
@@ -34,15 +46,4 @@ func encodeKeyIndices(netIndex []byte, appIndex []byte) []byte {
 	output := make([]byte, 4)
 	binary.LittleEndian.PutUint32(output, indices)
 	return output[:3]
-}
-
-func incrementKeyIndex(imput []byte) []byte {
-	// Convert to uint16
-	index := binary.LittleEndian.Uint16(imput)
-	// Increment
-	index++
-	// Convert back to byte slice
-	output := make([]byte, 2)
-	binary.LittleEndian.PutUint16(output, index)
-	return output
 }
