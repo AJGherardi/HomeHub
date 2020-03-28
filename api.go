@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"reflect"
 	"time"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
@@ -64,8 +65,8 @@ func registerMutation(schema *schemabuilder.Schema) {
 		sendProxyPdu(cln, write, addMsg)
 		res := <-messages
 		fmt.Printf("add %x \n", res)
-		// Send app key bind for onoff
-		bindPayload := models.AppKeyBind(netData.NextAddr, appKey.KeyIndex, []byte{0x10, 0x00})
+		// Send app key bind for config data
+		bindPayload := models.AppKeyBind(netData.NextAddr, appKey.KeyIndex, []byte{0x13, 0x12})
 		bindMsg, seq := mesh.EncodeAccessMsg(
 			mesh.DevMsg,
 			seq,
@@ -78,37 +79,6 @@ func registerMutation(schema *schemabuilder.Schema) {
 			bindPayload,
 		)
 		sendProxyPdu(cln, write, bindMsg)
-		res = <-messages
-		fmt.Printf("bind %x \n", res)
-		bindPayload2 := models.AppKeyBind([]byte{0x00, 0x02}, appKey.KeyIndex, []byte{0x10, 0x00})
-		bindMsg2, seq := mesh.EncodeAccessMsg(
-			mesh.DevMsg,
-			seq,
-			src,
-			netData.NextAddr,
-			ttl,
-			netData.IvIndex,
-			devKey,
-			netData.NetKey,
-			bindPayload2,
-		)
-		sendProxyPdu(cln, write, bindMsg2)
-		res = <-messages
-		fmt.Printf("bind %x \n", res)
-		// Send app key bind for config data
-		bindPayload3 := models.AppKeyBind(netData.NextAddr, appKey.KeyIndex, []byte{0x13, 0x12})
-		bindMsg3, seq := mesh.EncodeAccessMsg(
-			mesh.DevMsg,
-			seq,
-			src,
-			netData.NextAddr,
-			ttl,
-			netData.IvIndex,
-			devKey,
-			netData.NetKey,
-			bindPayload3,
-		)
-		sendProxyPdu(cln, write, bindMsg3)
 		res = <-messages
 		fmt.Printf("bind %x \n", res)
 		// Get model id
@@ -127,48 +97,65 @@ func registerMutation(schema *schemabuilder.Schema) {
 		sendProxyPdu(cln, write, compMsg)
 		res = <-messages
 		fmt.Printf("comp %x \n", res)
-		onoffPayload := models.OnOffSet(true)
-		onoffMsg, seq := mesh.EncodeAccessMsg(
-			mesh.AppMsg,
-			seq,
-			src,
-			netData.NextAddr,
-			ttl,
-			netData.IvIndex,
-			appKey.Key,
-			netData.NetKey,
-			onoffPayload,
-		)
-		sendProxyPdu(cln, write, onoffMsg)
-		res = <-messages
-		fmt.Printf("comp %x \n", res)
-		onoffPayload2 := models.OnOffSet(true)
-		onoffMsg2, seq := mesh.EncodeAccessMsg(
-			mesh.AppMsg,
-			seq,
-			src,
-			[]byte{0x00, 0x02},
-			ttl,
-			netData.IvIndex,
-			appKey.Key,
-			netData.NetKey,
-			onoffPayload2,
-		)
-		sendProxyPdu(cln, write, onoffMsg2)
-		res = <-messages
-		fmt.Printf("comp %x \n", res)
-		// Update net data
-		netData.HubSeq = seq
-		netData.NextAddr = incrementAddr(netData.NextAddr)
-		updateNetData(netCollection, netData)
+		var device Device
+		var elemAddr1 []byte = netData.NextAddr
+		var elemAddr2 []byte = incrementAddr(elemAddr1)
+		fmt.Println(elemAddr1)
+		if reflect.DeepEqual(res[2:], []byte{0x00, 0x00}) {
+			devType := "2PowerSwitch"
+			// Send app key bind for onoff
+			var bindMsg1 [][]byte
+			bindPayload1 := models.AppKeyBind(elemAddr1, appKey.KeyIndex, []byte{0x10, 0x00})
+			bindMsg1, seq = mesh.EncodeAccessMsg(
+				mesh.DevMsg,
+				seq,
+				src,
+				netData.NextAddr,
+				ttl,
+				netData.IvIndex,
+				devKey,
+				netData.NetKey,
+				bindPayload1,
+			)
+			sendProxyPdu(cln, write, bindMsg1)
+			res = <-messages
+			fmt.Printf("bind %x \n", res)
+			var bindMsg2 [][]byte
+			bindPayload2 := models.AppKeyBind(elemAddr2, appKey.KeyIndex, []byte{0x10, 0x00})
+			bindMsg2, seq = mesh.EncodeAccessMsg(
+				mesh.DevMsg,
+				seq,
+				src,
+				netData.NextAddr,
+				ttl,
+				netData.IvIndex,
+				devKey,
+				netData.NetKey,
+				bindPayload2,
+			)
+			sendProxyPdu(cln, write, bindMsg2)
+			res = <-messages
+			fmt.Printf("bind %x \n", res)
+			// Make Device
+			device = Device{
+				Name: args.Name,
+				Addr: netData.NextAddr,
+				Type: devType,
+				Elements: []Element{
+					Element{Addr: elemAddr1, StateType: "onoff", State: []byte{0x00}},
+					Element{Addr: elemAddr2, StateType: "onoff", State: []byte{0x00}},
+				},
+			}
+		}
 		// Save Device
-		insertDevice(devicesCollection, Device{
-			Name: args.Name,
-			Addr: netData.NextAddr,
-		})
+		insertDevice(devicesCollection, device)
 		// Add device to group
 		group.DevAddrs = append(group.DevAddrs, netData.NextAddr)
 		updateGroup(groupsCollection, group)
+		// Update net data
+		netData.HubSeq = seq
+		netData.NextAddr = incrementAddr(elemAddr2)
+		updateNetData(netCollection, netData)
 		return Device{Name: args.Name}
 	})
 	obj.FieldFunc("addGroup", func(args struct{ Name string }) Group {
