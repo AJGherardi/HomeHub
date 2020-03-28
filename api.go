@@ -28,6 +28,15 @@ func registerQuery(schema *schemabuilder.Schema) {
 			netData.NextAddr,
 		)
 	})
+	obj.FieldFunc("getState", func(args struct {
+		DevAddr    string
+		ElemNumber int64
+	}) string {
+		devAddr := decodeBase64(args.DevAddr)
+		device := getDeviceByAddr(devicesCollection, devAddr)
+		element := device.Elements[args.ElemNumber]
+		return encodeBase64(element.State)
+	})
 }
 
 func registerMutation(schema *schemabuilder.Schema) {

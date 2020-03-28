@@ -103,6 +103,13 @@ func getDevices(collection *mongo.Collection) []Device {
 	return devices
 }
 
+func getDeviceByAddr(collection *mongo.Collection, addr []byte) Device {
+	var device Device
+	result := collection.FindOne(context.TODO(), bson.M{"addr": addr})
+	result.Decode(&device)
+	return device
+}
+
 func insertDevice(collection *mongo.Collection, device Device) {
 	collection.InsertOne(context.TODO(), device)
 }
