@@ -31,11 +31,11 @@ func registerQuery(schema *schemabuilder.Schema) {
 	obj.FieldFunc("getState", func(args struct {
 		DevAddr    string
 		ElemNumber int64
-	}) string {
+	}) State {
 		devAddr := decodeBase64(args.DevAddr)
 		device := getDeviceByAddr(devicesCollection, devAddr)
 		element := device.Elements[args.ElemNumber]
-		return encodeBase64(element.State)
+		return element.State
 	})
 }
 
@@ -109,7 +109,6 @@ func registerMutation(schema *schemabuilder.Schema) {
 		var device Device
 		var elemAddr1 []byte = netData.NextAddr
 		var elemAddr2 []byte = incrementAddr(elemAddr1)
-		fmt.Println(elemAddr1)
 		if reflect.DeepEqual(res[2:], []byte{0x00, 0x00}) {
 			devType := "2PowerSwitch"
 			// Send app key bind for onoff
@@ -151,8 +150,14 @@ func registerMutation(schema *schemabuilder.Schema) {
 				Addr: netData.NextAddr,
 				Type: devType,
 				Elements: []Element{
-					Element{Addr: elemAddr1, StateType: "onoff", State: []byte{0x00}},
-					Element{Addr: elemAddr2, StateType: "onoff", State: []byte{0x00}},
+					Element{Addr: elemAddr1, State: State{
+						StateType: "onoff",
+						State:     []byte{0x00},
+					}},
+					Element{Addr: elemAddr2, State: State{
+						StateType: "onoff",
+						State:     []byte{0x00},
+					}},
 				},
 			}
 		}
@@ -189,6 +194,18 @@ func registerMutation(schema *schemabuilder.Schema) {
 		netData.NextAppKeyIndex = models.IncrementKeyIndex(netData.NextAppKeyIndex)
 		updateNetData(netCollection, netData)
 		return Group{Name: args.Name, Addr: netData.NextGroupAddr}
+	})
+}
+
+func registerState(schema *schemabuilder.Schema) {
+	obj := schema.Object("State", State{})
+	obj.FieldFunc("state", func(ctx context.Context, p *State) string {
+		reactive.InvalidateAfter(ctx, 5*time.Second)
+		return encodeBase64(p.State)
+	})
+	obj.FieldFunc("stateType", func(ctx context.Context, p *State) string {
+		reactive.InvalidateAfter(ctx, 5*time.Second)
+		return p.StateType
 	})
 }
 

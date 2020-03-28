@@ -21,7 +21,12 @@ type Device struct {
 
 // Element holds an elements addr and its state
 type Element struct {
-	Addr      []byte
+	Addr  []byte
+	State State
+}
+
+// State has a value and a type
+type State struct {
 	State     []byte
 	StateType string
 }
