@@ -7,14 +7,9 @@ func OnOffGet() []byte {
 }
 
 // OnOffSet makes an generic onoff set payload
-func OnOffSet(onoff bool) []byte {
+func OnOffSet(onoff byte) []byte {
 	opcode := []byte{0x82, 0x02}
-	var value byte
-	if onoff == true {
-		value = 0x01
-	} else {
-		value = 0x00
-	}
-	output := append(opcode, []byte{value, 0x00}...)
+
+	output := append(opcode, []byte{onoff, 0x00}...)
 	return output
 }

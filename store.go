@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"reflect"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
 	"go.mongodb.org/mongo-driver/bson"
@@ -71,6 +72,22 @@ func getGroupByAddr(collection *mongo.Collection, addr []byte) Group {
 	result := collection.FindOne(context.TODO(), bson.M{"addr": addr})
 	result.Decode(&group)
 	return group
+}
+
+func getGroupByDevAddr(collection *mongo.Collection, addr []byte) Group {
+	// Get all Devices
+	cur, _ := collection.Find(context.TODO(), bson.D{})
+	// Deserialize into array of Groups
+	for cur.Next(context.TODO()) {
+		var result Group
+		cur.Decode(&result)
+		for _, devAddr := range result.DevAddrs {
+			if reflect.DeepEqual(devAddr, addr) {
+				return result
+			}
+		}
+	}
+	return Group{}
 }
 
 func insertGroup(collection *mongo.Collection, group Group) {
@@ -165,6 +182,13 @@ func getDevKeys(collection *mongo.Collection) []mesh.DevKey {
 		keys = append(keys, result)
 	}
 	return keys
+}
+
+func getDevKeyByAddr(collection *mongo.Collection, addr []byte) mesh.DevKey {
+	var key mesh.DevKey
+	result := collection.FindOne(context.TODO(), bson.M{"addr": addr})
+	result.Decode(&key)
+	return key
 }
 
 func insertDevKey(collection *mongo.Collection, key mesh.DevKey) {

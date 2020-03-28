@@ -170,7 +170,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		netData.HubSeq = seq
 		netData.NextAddr = incrementAddr(elemAddr2)
 		updateNetData(netCollection, netData)
-		return Device{Name: args.Name}
+		return device
 	})
 	obj.FieldFunc("addGroup", func(args struct{ Name string }) Group {
 		// Generate an app key
@@ -195,6 +195,48 @@ func registerMutation(schema *schemabuilder.Schema) {
 		updateNetData(netCollection, netData)
 		return Group{Name: args.Name, Addr: netData.NextGroupAddr}
 	})
+	obj.FieldFunc("setState", func(args struct {
+		DevAddr    string
+		ElemNumber int64
+		Value      string
+	}) State {
+		value := decodeBase64(args.Value)
+		devAddr := decodeBase64(args.DevAddr)
+		device := getDeviceByAddr(devicesCollection, devAddr)
+		// Set State
+		device.Elements[args.ElemNumber].State.State = value
+		// Get appkey from group
+		group := getGroupByDevAddr(groupsCollection, device.Addr)
+		appKey := getAppKeyByAid(appKeysCollection, group.Aid)
+		// Send State
+		if device.Elements[args.ElemNumber].State.StateType == "onoff" {
+			// Message vars
+			src := []byte{0x12, 0x34}
+			ttl := byte(0x04)
+			seq := netData.HubSeq
+			// Send msg
+			onoffPayload := models.OnOffSet(value[0])
+			onoffMsg, seq := mesh.EncodeAccessMsg(
+				mesh.AppMsg,
+				seq,
+				src,
+				device.Elements[args.ElemNumber].Addr,
+				ttl,
+				netData.IvIndex,
+				appKey.Key,
+				netData.NetKey,
+				onoffPayload,
+			)
+			sendProxyPdu(cln, write, onoffMsg)
+			res := <-messages
+			fmt.Printf("onoff %x \n", res)
+			// Update net data
+			netData.HubSeq = seq
+			updateNetData(netCollection, netData)
+		}
+		updateDevice(devicesCollection, device)
+		return device.Elements[args.ElemNumber].State
+	})
 }
 
 func registerState(schema *schemabuilder.Schema) {
@@ -214,6 +256,10 @@ func registerDevice(schema *schemabuilder.Schema) {
 	obj.FieldFunc("type", func(ctx context.Context, p *Device) string {
 		reactive.InvalidateAfter(ctx, 5*time.Second)
 		return p.Type
+	})
+	obj.FieldFunc("addr", func(ctx context.Context, p *Device) string {
+		reactive.InvalidateAfter(ctx, 5*time.Second)
+		return encodeBase64(p.Addr)
 	})
 	obj.FieldFunc("name", func(ctx context.Context, p *Device) string {
 		reactive.InvalidateAfter(ctx, 5*time.Second)
