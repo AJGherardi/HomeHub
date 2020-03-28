@@ -64,7 +64,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		sendProxyPdu(cln, write, addMsg)
 		res := <-messages
 		fmt.Printf("add %x \n", res)
-		// Send app key bind
+		// Send app key bind for onoff
 		bindPayload := models.AppKeyBind(netData.NextAddr, appKey.KeyIndex, []byte{0x10, 0x00})
 		bindMsg, seq := mesh.EncodeAccessMsg(
 			mesh.DevMsg,
@@ -80,7 +80,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		sendProxyPdu(cln, write, bindMsg)
 		res = <-messages
 		fmt.Printf("bind %x \n", res)
-		bindPayload2 := models.AppKeyBind(netData.NextAddr, appKey.KeyIndex, []byte{0x13, 0x12})
+		bindPayload2 := models.AppKeyBind([]byte{0x00, 0x02}, appKey.KeyIndex, []byte{0x10, 0x00})
 		bindMsg2, seq := mesh.EncodeAccessMsg(
 			mesh.DevMsg,
 			seq,
@@ -93,6 +93,22 @@ func registerMutation(schema *schemabuilder.Schema) {
 			bindPayload2,
 		)
 		sendProxyPdu(cln, write, bindMsg2)
+		res = <-messages
+		fmt.Printf("bind %x \n", res)
+		// Send app key bind for config data
+		bindPayload3 := models.AppKeyBind(netData.NextAddr, appKey.KeyIndex, []byte{0x13, 0x12})
+		bindMsg3, seq := mesh.EncodeAccessMsg(
+			mesh.DevMsg,
+			seq,
+			src,
+			netData.NextAddr,
+			ttl,
+			netData.IvIndex,
+			devKey,
+			netData.NetKey,
+			bindPayload3,
+		)
+		sendProxyPdu(cln, write, bindMsg3)
 		res = <-messages
 		fmt.Printf("bind %x \n", res)
 		// Get model id
@@ -109,6 +125,36 @@ func registerMutation(schema *schemabuilder.Schema) {
 			compPayload,
 		)
 		sendProxyPdu(cln, write, compMsg)
+		res = <-messages
+		fmt.Printf("comp %x \n", res)
+		onoffPayload := models.OnOffSet(true)
+		onoffMsg, seq := mesh.EncodeAccessMsg(
+			mesh.AppMsg,
+			seq,
+			src,
+			netData.NextAddr,
+			ttl,
+			netData.IvIndex,
+			appKey.Key,
+			netData.NetKey,
+			onoffPayload,
+		)
+		sendProxyPdu(cln, write, onoffMsg)
+		res = <-messages
+		fmt.Printf("comp %x \n", res)
+		onoffPayload2 := models.OnOffSet(true)
+		onoffMsg2, seq := mesh.EncodeAccessMsg(
+			mesh.AppMsg,
+			seq,
+			src,
+			[]byte{0x00, 0x02},
+			ttl,
+			netData.IvIndex,
+			appKey.Key,
+			netData.NetKey,
+			onoffPayload2,
+		)
+		sendProxyPdu(cln, write, onoffMsg2)
 		res = <-messages
 		fmt.Printf("comp %x \n", res)
 		// Update net data
