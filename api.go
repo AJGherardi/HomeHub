@@ -7,6 +7,7 @@ import (
 	"time"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
+	"github.com/AJGherardi/HomeHub/models"
 	"github.com/samsarahq/thunder/graphql"
 	"github.com/samsarahq/thunder/graphql/schemabuilder"
 	"github.com/samsarahq/thunder/reactive"
@@ -48,7 +49,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		devKey := decodeBase64(args.DevKey)
 		insertDevKey(devKeysCollection, mesh.DevKey{Addr: netData.NextAddr, Key: devKey})
 		// Send app key add
-		addPayload := append([]byte{0x00, 0x00, 0x30, 0x00}, appKey.Key...)
+		addPayload := models.AppKeyAdd(netData.NetKeyIndex, []byte{0x01, 0x00}, appKey.Key)
 		addMsg, seq := mesh.EncodeAccessMsg(
 			mesh.DevMsg,
 			seq,
@@ -64,7 +65,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		res := <-messages
 		fmt.Printf("add %x \n", res)
 		// Send app key bind
-		bindPayload := []byte{0x80, 0x3d, 0x01, 0x00, 0x03, 0x00, 0x00, 0x10}
+		bindPayload := models.AppKeyBind(netData.NextAddr, []byte{0x01, 0x00}, []byte{0x10, 0x00})
 		bindMsg, seq := mesh.EncodeAccessMsg(
 			mesh.DevMsg,
 			seq,
@@ -79,7 +80,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		sendProxyPdu(cln, write, bindMsg)
 		res = <-messages
 		fmt.Printf("bind %x \n", res)
-		bindPayload2 := []byte{0x80, 0x3d, 0x01, 0x00, 0x03, 0x00, 0x12, 0x13}
+		bindPayload2 := models.AppKeyBind(netData.NextAddr, []byte{0x01, 0x00}, []byte{0x13, 0x12})
 		bindMsg2, seq := mesh.EncodeAccessMsg(
 			mesh.DevMsg,
 			seq,

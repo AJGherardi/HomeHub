@@ -31,11 +31,11 @@ func encodeProvData(netKey []byte, keyIndex []byte, flags []byte, ivIndex []byte
 
 func incrementAddr(imput []byte) []byte {
 	// Convert to uint16
-	short := binary.BigEndian.Uint16(imput)
+	addr := binary.BigEndian.Uint16(imput)
 	// Increment
-	short++
+	addr++
 	// Convert back to byte slice
 	output := make([]byte, 2)
-	binary.BigEndian.PutUint16(output, short)
+	binary.BigEndian.PutUint16(output, addr)
 	return output
 }
