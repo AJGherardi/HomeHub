@@ -96,7 +96,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		res = <-messages
 		fmt.Printf("bind %x \n", res)
 		// Get model id
-		compPayload := []byte{0x80, 0x50}
+		compPayload := models.ConfigDataGet()
 		compMsg, seq := mesh.EncodeAccessMsg(
 			mesh.AppMsg,
 			seq,
@@ -130,6 +130,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		appKey := make([]byte, 16)
 		rand.Read(appKey)
 		aid := mesh.GetAid(appKey)
+		// Add groups app key
 		insertAppKey(appKeysCollection, mesh.AppKey{
 			Aid:      []byte{aid},
 			Key:      appKey,

@@ -24,6 +24,12 @@ func AppKeyBind(addr []byte, appIndex []byte, modelID []byte) []byte {
 	return payload
 }
 
+// ConfigDataGet makes an config data get payload
+func ConfigDataGet() []byte {
+	opcode := []byte{0x80, 0x50}
+	return opcode
+}
+
 // IncrementKeyIndex increments an key index
 func IncrementKeyIndex(imput []byte) []byte {
 	// Convert to uint16
