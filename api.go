@@ -18,10 +18,22 @@ import (
 
 func registerQuery(schema *schemabuilder.Schema) {
 	obj := schema.Query()
-	obj.FieldFunc("listDevices", func() []Device {
+	obj.FieldFunc("listDevices", func(args struct{ WebKey string }) []Device {
+		// Verify webKey
+		webKey := decodeBase64(args.WebKey)
+		verify := checkWebKey(netData, webKey)
+		if !verify {
+			return []Device{}
+		}
 		return getDevices(devicesCollection)
 	})
-	obj.FieldFunc("getProvData", func() ProvData {
+	obj.FieldFunc("getProvData", func(args struct{ WebKey string }) ProvData {
+		// Verify webKey
+		webKey := decodeBase64(args.WebKey)
+		verify := checkWebKey(netData, webKey)
+		if !verify {
+			return ProvData{}
+		}
 		return encodeProvData(
 			netData.NetKey,
 			netData.NetKeyIndex,
@@ -33,7 +45,14 @@ func registerQuery(schema *schemabuilder.Schema) {
 	obj.FieldFunc("getState", func(args struct {
 		DevAddr    string
 		ElemNumber int64
+		WebKey     string
 	}) State {
+		// Verify webKey
+		webKey := decodeBase64(args.WebKey)
+		verify := checkWebKey(netData, webKey)
+		if !verify {
+			return State{}
+		}
 		devAddr := decodeBase64(args.DevAddr)
 		device := getDeviceByAddr(devicesCollection, devAddr)
 		element := device.Elements[args.ElemNumber]
@@ -47,7 +66,14 @@ func registerMutation(schema *schemabuilder.Schema) {
 		Name   string
 		Addr   string
 		DevKey string
+		WebKey string
 	}) Device {
+		// Verify webKey
+		webKey := decodeBase64(args.WebKey)
+		verify := checkWebKey(netData, webKey)
+		if !verify {
+			return Device{}
+		}
 		// Message vars
 		src := []byte{0x12, 0x34}
 		ttl := byte(0x04)
@@ -174,7 +200,16 @@ func registerMutation(schema *schemabuilder.Schema) {
 		updateNetData(netCollection, netData)
 		return device
 	})
-	obj.FieldFunc("addGroup", func(args struct{ Name string }) Group {
+	obj.FieldFunc("addGroup", func(args struct {
+		Name   string
+		WebKey string
+	}) Group {
+		// Verify webKey
+		webKey := decodeBase64(args.WebKey)
+		verify := checkWebKey(netData, webKey)
+		if !verify {
+			return Group{}
+		}
 		// Generate an app key
 		appKey := make([]byte, 16)
 		rand.Read(appKey)
@@ -201,7 +236,14 @@ func registerMutation(schema *schemabuilder.Schema) {
 		DevAddr    string
 		ElemNumber int64
 		Value      string
+		WebKey     string
 	}) State {
+		// Verify webKey
+		webKey := decodeBase64(args.WebKey)
+		verify := checkWebKey(netData, webKey)
+		if !verify {
+			return State{}
+		}
 		value := decodeBase64(args.Value)
 		devAddr := decodeBase64(args.DevAddr)
 		device := getDeviceByAddr(devicesCollection, devAddr)
@@ -240,6 +282,9 @@ func registerMutation(schema *schemabuilder.Schema) {
 		return device.Elements[args.ElemNumber].State
 	})
 	obj.FieldFunc("configHub", func() string {
+		// Make a web key
+		webKey := make([]byte, 16)
+		rand.Read(webKey)
 		// Clean house
 		groupsCollection.DeleteMany(context.TODO(), bson.D{})
 		devicesCollection.DeleteMany(context.TODO(), bson.D{})
@@ -261,12 +306,9 @@ func registerMutation(schema *schemabuilder.Schema) {
 			NextAddr:        []byte{0x00, 0x01},
 			NextGroupAddr:   []byte{0xc0, 0x00},
 			HubSeq:          []byte{0x00, 0x00, 0x00},
+			WebKeys:         [][]byte{webKey},
 		})
 		netData = getNetData(netCollection)
-		// Make and store a web key
-		webKey := make([]byte, 16)
-		rand.Read(webKey)
-		insertWebKey(webKeysCollection, webKey)
 		return encodeBase64(webKey)
 	})
 }

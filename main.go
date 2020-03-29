@@ -31,6 +31,8 @@ func main() {
 	appKeysCollection = getCollection("appKeys")
 	devKeysCollection = getCollection("devKeys")
 	netCollection = getCollection("net")
+	// Get net data
+	netData = getNetData(netCollection)
 	// Connect and get write characteristic
 	cln, write = connectToProxy()
 	fmt.Println("con")

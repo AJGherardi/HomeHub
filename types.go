@@ -42,6 +42,7 @@ type NetData struct {
 	NextAddr        []byte
 	NextGroupAddr   []byte
 	HubSeq          []byte
+	WebKeys         [][]byte
 }
 
 // ProvData holds all data needed to setup a device in base64
