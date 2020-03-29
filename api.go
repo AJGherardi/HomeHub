@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"reflect"
 	"time"
@@ -18,21 +19,21 @@ import (
 
 func registerQuery(schema *schemabuilder.Schema) {
 	obj := schema.Query()
-	obj.FieldFunc("listDevices", func(args struct{ WebKey string }) []Device {
+	obj.FieldFunc("listDevices", func(args struct{ WebKey string }) ([]Device, error) {
 		// Verify webKey
 		webKey := decodeBase64(args.WebKey)
 		verify := checkWebKey(netData, webKey)
 		if !verify {
-			return []Device{}
+			return []Device{}, errors.New("Key not found")
 		}
-		return getDevices(devicesCollection)
+		return getDevices(devicesCollection), nil
 	})
-	obj.FieldFunc("getProvData", func(args struct{ WebKey string }) ProvData {
+	obj.FieldFunc("getProvData", func(args struct{ WebKey string }) (ProvData, error) {
 		// Verify webKey
 		webKey := decodeBase64(args.WebKey)
 		verify := checkWebKey(netData, webKey)
 		if !verify {
-			return ProvData{}
+			return ProvData{}, errors.New("Key not found")
 		}
 		return encodeProvData(
 			netData.NetKey,
@@ -40,23 +41,23 @@ func registerQuery(schema *schemabuilder.Schema) {
 			netData.Flags,
 			netData.IvIndex,
 			netData.NextAddr,
-		)
+		), nil
 	})
 	obj.FieldFunc("getState", func(args struct {
 		DevAddr    string
 		ElemNumber int64
 		WebKey     string
-	}) State {
+	}) (State, error) {
 		// Verify webKey
 		webKey := decodeBase64(args.WebKey)
 		verify := checkWebKey(netData, webKey)
 		if !verify {
-			return State{}
+			return State{}, errors.New("Key not found")
 		}
 		devAddr := decodeBase64(args.DevAddr)
 		device := getDeviceByAddr(devicesCollection, devAddr)
 		element := device.Elements[args.ElemNumber]
-		return element.State
+		return element.State, nil
 	})
 }
 
@@ -67,12 +68,12 @@ func registerMutation(schema *schemabuilder.Schema) {
 		Addr   string
 		DevKey string
 		WebKey string
-	}) Device {
+	}) (Device, error) {
 		// Verify webKey
 		webKey := decodeBase64(args.WebKey)
 		verify := checkWebKey(netData, webKey)
 		if !verify {
-			return Device{}
+			return Device{}, errors.New("Key not found")
 		}
 		// Message vars
 		src := []byte{0x12, 0x34}
@@ -198,17 +199,17 @@ func registerMutation(schema *schemabuilder.Schema) {
 		netData.HubSeq = seq
 		netData.NextAddr = incrementAddr(elemAddr2)
 		updateNetData(netCollection, netData)
-		return device
+		return device, nil
 	})
 	obj.FieldFunc("addGroup", func(args struct {
 		Name   string
 		WebKey string
-	}) Group {
+	}) (Group, error) {
 		// Verify webKey
 		webKey := decodeBase64(args.WebKey)
 		verify := checkWebKey(netData, webKey)
 		if !verify {
-			return Group{}
+			return Group{}, errors.New("Key not found")
 		}
 		// Generate an app key
 		appKey := make([]byte, 16)
@@ -230,19 +231,19 @@ func registerMutation(schema *schemabuilder.Schema) {
 		netData.NextGroupAddr = incrementAddr(netData.NextGroupAddr)
 		netData.NextAppKeyIndex = models.IncrementKeyIndex(netData.NextAppKeyIndex)
 		updateNetData(netCollection, netData)
-		return Group{Name: args.Name, Addr: netData.NextGroupAddr}
+		return Group{Name: args.Name, Addr: netData.NextGroupAddr}, nil
 	})
 	obj.FieldFunc("setState", func(args struct {
 		DevAddr    string
 		ElemNumber int64
 		Value      string
 		WebKey     string
-	}) State {
+	}) (State, error) {
 		// Verify webKey
 		webKey := decodeBase64(args.WebKey)
 		verify := checkWebKey(netData, webKey)
 		if !verify {
-			return State{}
+			return State{}, errors.New("Key not found")
 		}
 		value := decodeBase64(args.Value)
 		devAddr := decodeBase64(args.DevAddr)
@@ -279,7 +280,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 			updateNetData(netCollection, netData)
 		}
 		updateDevice(devicesCollection, device)
-		return device.Elements[args.ElemNumber].State
+		return device.Elements[args.ElemNumber].State, nil
 	})
 	obj.FieldFunc("configHub", func() string {
 		// Make a web key
