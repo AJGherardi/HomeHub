@@ -34,12 +34,12 @@ func main() {
 	// Get net data
 	netData = getNetData(netCollection)
 	// Connect and get write characteristic
-	cln, write = connectToProxy()
+	// cln, write = connectToProxy()
 	fmt.Println("con")
 	// Build schema
 	schema := schema()
 	introspection.AddIntrospectionToSchema(schema)
 	// Serve graphql
-	http.Handle("/graphql", graphql.HTTPHandler(schema))
+	http.Handle("/graphql", graphql.HTTPHandler(schema, authenticate))
 	http.ListenAndServe(":8080", nil)
 }

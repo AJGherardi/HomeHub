@@ -19,22 +19,10 @@ import (
 
 func registerQuery(schema *schemabuilder.Schema) {
 	obj := schema.Query()
-	obj.FieldFunc("listDevices", func(args struct{ WebKey string }) ([]Device, error) {
-		// Verify webKey
-		webKey := decodeBase64(args.WebKey)
-		verify := checkWebKey(netData, webKey)
-		if !verify {
-			return []Device{}, errors.New("Key not found")
-		}
+	obj.FieldFunc("listDevices", func() ([]Device, error) {
 		return getDevices(devicesCollection), nil
 	})
-	obj.FieldFunc("getProvData", func(args struct{ WebKey string }) (ProvData, error) {
-		// Verify webKey
-		webKey := decodeBase64(args.WebKey)
-		verify := checkWebKey(netData, webKey)
-		if !verify {
-			return ProvData{}, errors.New("Key not found")
-		}
+	obj.FieldFunc("getProvData", func() (ProvData, error) {
 		return encodeProvData(
 			netData.NetKey,
 			netData.NetKeyIndex,
@@ -46,14 +34,7 @@ func registerQuery(schema *schemabuilder.Schema) {
 	obj.FieldFunc("getState", func(args struct {
 		DevAddr    string
 		ElemNumber int64
-		WebKey     string
 	}) (State, error) {
-		// Verify webKey
-		webKey := decodeBase64(args.WebKey)
-		verify := checkWebKey(netData, webKey)
-		if !verify {
-			return State{}, errors.New("Key not found")
-		}
 		devAddr := decodeBase64(args.DevAddr)
 		device := getDeviceByAddr(devicesCollection, devAddr)
 		element := device.Elements[args.ElemNumber]
@@ -67,14 +48,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		Name   string
 		Addr   string
 		DevKey string
-		WebKey string
 	}) (Device, error) {
-		// Verify webKey
-		webKey := decodeBase64(args.WebKey)
-		verify := checkWebKey(netData, webKey)
-		if !verify {
-			return Device{}, errors.New("Key not found")
-		}
 		// Message vars
 		src := []byte{0x12, 0x34}
 		ttl := byte(0x04)
@@ -136,10 +110,11 @@ func registerMutation(schema *schemabuilder.Schema) {
 		res = <-messages
 		fmt.Printf("comp %x \n", res)
 		var device Device
-		var elemAddr1 []byte = netData.NextAddr
-		var elemAddr2 []byte = incrementAddr(elemAddr1)
+		var lastElemAdds []byte
 		if reflect.DeepEqual(res[2:], []byte{0x00, 0x00}) {
 			devType := "2PowerSwitch"
+			var elemAddr1 []byte = netData.NextAddr
+			var elemAddr2 []byte = incrementAddr(elemAddr1)
 			// Send app key bind for onoff
 			var bindMsg1 [][]byte
 			bindPayload1 := models.AppKeyBind(elemAddr1, appKey.KeyIndex, []byte{0x10, 0x00})
@@ -189,6 +164,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 					}},
 				},
 			}
+			lastElemAdds = elemAddr2
 		}
 		// Save Device
 		insertDevice(devicesCollection, device)
@@ -197,20 +173,13 @@ func registerMutation(schema *schemabuilder.Schema) {
 		updateGroup(groupsCollection, group)
 		// Update net data
 		netData.HubSeq = seq
-		netData.NextAddr = incrementAddr(elemAddr2)
+		netData.NextAddr = incrementAddr(lastElemAdds)
 		updateNetData(netCollection, netData)
 		return device, nil
 	})
 	obj.FieldFunc("addGroup", func(args struct {
-		Name   string
-		WebKey string
+		Name string
 	}) (Group, error) {
-		// Verify webKey
-		webKey := decodeBase64(args.WebKey)
-		verify := checkWebKey(netData, webKey)
-		if !verify {
-			return Group{}, errors.New("Key not found")
-		}
 		// Generate an app key
 		appKey := make([]byte, 16)
 		rand.Read(appKey)
@@ -237,14 +206,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		DevAddr    string
 		ElemNumber int64
 		Value      string
-		WebKey     string
 	}) (State, error) {
-		// Verify webKey
-		webKey := decodeBase64(args.WebKey)
-		verify := checkWebKey(netData, webKey)
-		if !verify {
-			return State{}, errors.New("Key not found")
-		}
 		value := decodeBase64(args.Value)
 		devAddr := decodeBase64(args.DevAddr)
 		device := getDeviceByAddr(devicesCollection, devAddr)
@@ -387,4 +349,21 @@ func schema() *graphql.Schema {
 	registerGroup(builder)
 	registerProvData(builder)
 	return builder.MustBuild()
+}
+
+func authenticate(input *graphql.ComputationInput, next graphql.MiddlewareNextFunc) *graphql.ComputationOutput {
+	name := input.ParsedQuery.Selections[0].Name
+	// Config hub dose not need a webKey
+	if name == "configHub" {
+		output := next(input)
+		return output
+	}
+	// Verfiy web key
+	webKey := decodeBase64(input.Variables["webKey"].(string))
+	verify := checkWebKey(netData, webKey)
+	if !verify {
+		return &graphql.ComputationOutput{Current: nil, Error: errors.New("Key not found")}
+	}
+	output := next(input)
+	return output
 }
