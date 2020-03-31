@@ -113,6 +113,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 	obj.FieldFunc("addGroup", func(args struct {
 		Name string
 	}) (Group, error) {
+		var group Group
 		netData := getNetData(netCollection)
 		// Generate an app key
 		appKey := make([]byte, 16)
@@ -125,16 +126,15 @@ func registerMutation(schema *schemabuilder.Schema) {
 			KeyIndex: netData.NetKeyIndex,
 		})
 		// Add a group
-		insertGroup(groupsCollection, Group{
-			Name: args.Name,
-			Addr: netData.NextGroupAddr,
-			Aid:  []byte{aid}},
-		)
+		group.Name = args.Name
+		group.Addr = netData.NextGroupAddr
+		group.Aid = []byte{aid}
+		insertGroup(groupsCollection, group)
 		// Update net data
 		netData.NextGroupAddr = incrementAddr(netData.NextGroupAddr)
 		netData.NextAppKeyIndex = models.IncrementKeyIndex(netData.NextAppKeyIndex)
 		updateNetData(netCollection, netData)
-		return Group{Name: args.Name, Addr: netData.NextGroupAddr}, nil
+		return group, nil
 	})
 	obj.FieldFunc("setState", func(args struct {
 		DevAddr    string
