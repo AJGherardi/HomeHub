@@ -11,19 +11,24 @@ import (
 )
 
 var (
-	src = []byte{0x12, 0x34}
-	ttl = byte(0x04)
+	src      = []byte{0x12, 0x34}
+	ttl      = byte(0x04)
+	messages = make(map[[2]byte](chan []byte))
+	msg      = new(mesh.Msg)
 )
 
 func onNotify(req []byte) {
 	netData := getNetData(netCollection)
 	devKeys := getDevKeys(devKeysCollection)
 	appKeys := getAppKeys(appKeysCollection)
+	// Check if it is a network pdu
 	if req[0] == 0x00 {
-		msg := new(mesh.Msg)
-		mesh.DecodePdu(msg, req[1:], netData.NetKey, netData.IvIndex, appKeys, devKeys)
-		if len(msg.Payload) != 0 {
-			messages <- msg.Payload
+		cmp := mesh.DecodePdu(msg, req[1:], netData.NetKey, netData.IvIndex, appKeys, devKeys)
+		if cmp {
+			var msgSrc [2]byte
+			copy(msgSrc[:], msg.Src)
+			messages[msgSrc] <- msg.Payload
+			msg = new(mesh.Msg)
 		}
 	}
 }
@@ -53,6 +58,13 @@ func connectToProxy() (ble.Client, *ble.Characteristic) {
 	read := p.FindCharacteristic(ble.NewCharacteristic(ble.UUID16(0x2ade)))
 	// Subscribe to mesh Out Characteristic
 	cln.Subscribe(read, false, onNotify)
+	// Set up receivers
+	devices := getDevices(devicesCollection)
+	for _, device := range devices {
+		for _, element := range device.Elements {
+			addReceiver(element.Addr)
+		}
+	}
 	return cln, write
 }
 
@@ -83,6 +95,16 @@ func sendMsgWithRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgType
 	// Update seq
 	netData.HubSeq = seq
 	updateNetData(netCollection, netData)
-	res := <-messages
+	// Get Rsp from addr
+	var msgDst [2]byte
+	copy(msgDst[:], dst)
+	res := <-messages[msgDst]
 	return res
+}
+
+// Adds a receiver for one address
+func addReceiver(addr []byte) {
+	var recAddr [2]byte
+	copy(recAddr[:], addr)
+	messages[recAddr] = make(chan []byte)
 }

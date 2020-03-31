@@ -19,7 +19,6 @@ var (
 	netCollection     *mongo.Collection
 	write             *ble.Characteristic
 	cln               ble.Client
-	messages          = make(chan []byte)
 )
 
 func main() {

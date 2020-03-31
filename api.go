@@ -51,6 +51,8 @@ func registerMutation(schema *schemabuilder.Schema) {
 		DevKey string
 	}) (Device, error) {
 		netData := getNetData(netCollection)
+		// Add device receiver
+		addReceiver(netData.NextAddr)
 		// Create device object
 		var device Device
 		device.Name = args.Name
@@ -98,6 +100,9 @@ func registerMutation(schema *schemabuilder.Schema) {
 					State:     []byte{0x00},
 				}},
 			}
+			// Add element receivers
+			addReceiver(elemAddr1)
+			addReceiver(elemAddr2)
 		}
 		// Save Device
 		insertDevice(devicesCollection, device)
