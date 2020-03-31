@@ -22,6 +22,9 @@ func registerQuery(schema *schemabuilder.Schema) {
 	obj.FieldFunc("listDevices", func() ([]Device, error) {
 		return getDevices(devicesCollection), nil
 	})
+	obj.FieldFunc("listGroups", func() ([]Group, error) {
+		return getGroups(groupsCollection), nil
+	})
 	obj.FieldFunc("getProvData", func() (ProvData, error) {
 		netData := getNetData(netCollection)
 		return encodeProvData(
@@ -50,6 +53,9 @@ func registerMutation(schema *schemabuilder.Schema) {
 		Addr   string
 		DevKey string
 	}) (Device, error) {
+		if cln == nil {
+			cln, write = connectToProxy()
+		}
 		netData := getNetData(netCollection)
 		// Add device receiver
 		addReceiver(netData.NextAddr)
@@ -169,6 +175,8 @@ func registerMutation(schema *schemabuilder.Schema) {
 		return device.Elements[args.ElemNumber].State, nil
 	})
 	obj.FieldFunc("configHub", func() string {
+		// Stop mdns server
+		mdnsServer.Shutdown()
 		// Make a web key
 		webKey := make([]byte, 16)
 		rand.Read(webKey)
