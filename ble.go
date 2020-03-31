@@ -10,6 +10,11 @@ import (
 	"github.com/go-ble/ble/examples/lib/dev"
 )
 
+var (
+	src = []byte{0x12, 0x34}
+	ttl = byte(0x04)
+)
+
 func onNotify(req []byte) {
 	devKeys := getDevKeys(devKeysCollection)
 	appKeys := getAppKeys(appKeysCollection)
@@ -55,4 +60,28 @@ func sendProxyPdu(cln ble.Client, write *ble.Characteristic, msg [][]byte) {
 		proxyPdu := append([]byte{0x00}, pdu...)
 		cln.WriteCharacteristic(write, proxyPdu, false)
 	}
+}
+
+// Sends a mesh message and returns a response
+func sendMsgWithRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgType) []byte {
+	netData := getNetData(netCollection)
+	// Encode msg and get new seq
+	msg, seq := mesh.EncodeAccessMsg(
+		msgType,
+		netData.HubSeq,
+		src,
+		dst,
+		ttl,
+		netData.IvIndex,
+		key,
+		netData.NetKey,
+		payload,
+	)
+	// Send msg
+	sendProxyPdu(cln, write, msg)
+	// Update seq
+	netData.HubSeq = seq
+	updateNetData(netCollection, netData)
+	res := <-messages
+	return res
 }

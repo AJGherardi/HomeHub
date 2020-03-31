@@ -49,10 +49,6 @@ func registerMutation(schema *schemabuilder.Schema) {
 		Addr   string
 		DevKey string
 	}) (Device, error) {
-		// Message vars
-		src := []byte{0x12, 0x34}
-		ttl := byte(0x04)
-		seq := netData.HubSeq
 		// Get group
 		groupAddr := decodeBase64(args.Addr)
 		group := getGroupByAddr(groupsCollection, groupAddr)
@@ -63,91 +59,29 @@ func registerMutation(schema *schemabuilder.Schema) {
 		insertDevKey(devKeysCollection, mesh.DevKey{Addr: netData.NextAddr, Key: devKey})
 		// Send app key add
 		addPayload := models.AppKeyAdd(netData.NetKeyIndex, appKey.KeyIndex, appKey.Key)
-		addMsg, seq := mesh.EncodeAccessMsg(
-			mesh.DevMsg,
-			seq,
-			src,
-			netData.NextAddr,
-			ttl,
-			netData.IvIndex,
-			devKey,
-			netData.NetKey,
-			addPayload,
-		)
-		sendProxyPdu(cln, write, addMsg)
-		res := <-messages
-		fmt.Printf("add %x \n", res)
+		addRsp := sendMsgWithRsp(netData.NextAddr, devKey, addPayload, mesh.DevMsg)
+		fmt.Printf("add %x \n", addRsp)
 		// Send app key bind for config data
 		bindPayload := models.AppKeyBind(netData.NextAddr, appKey.KeyIndex, []byte{0x13, 0x12})
-		bindMsg, seq := mesh.EncodeAccessMsg(
-			mesh.DevMsg,
-			seq,
-			src,
-			netData.NextAddr,
-			ttl,
-			netData.IvIndex,
-			devKey,
-			netData.NetKey,
-			bindPayload,
-		)
-		sendProxyPdu(cln, write, bindMsg)
-		res = <-messages
-		fmt.Printf("bind %x \n", res)
+		bindRsp := sendMsgWithRsp(netData.NextAddr, devKey, bindPayload, mesh.DevMsg)
+		fmt.Printf("bind %x \n", bindRsp)
 		// Get model id
 		compPayload := models.ConfigDataGet()
-		compMsg, seq := mesh.EncodeAccessMsg(
-			mesh.AppMsg,
-			seq,
-			src,
-			netData.NextAddr,
-			ttl,
-			netData.IvIndex,
-			appKey.Key,
-			netData.NetKey,
-			compPayload,
-		)
-		sendProxyPdu(cln, write, compMsg)
-		res = <-messages
-		fmt.Printf("comp %x \n", res)
+		compRsp := sendMsgWithRsp(netData.NextAddr, appKey.Key, compPayload, mesh.AppMsg)
+		fmt.Printf("comp %x \n", compRsp)
 		var device Device
-		var lastElemAdds []byte
-		if reflect.DeepEqual(res[2:], []byte{0x00, 0x00}) {
+		var lastElemAddr []byte
+		if reflect.DeepEqual(compRsp[2:], []byte{0x00, 0x00}) {
 			devType := "2PowerSwitch"
 			var elemAddr1 []byte = netData.NextAddr
 			var elemAddr2 []byte = incrementAddr(elemAddr1)
 			// Send app key bind for onoff
-			var bindMsg1 [][]byte
 			bindPayload1 := models.AppKeyBind(elemAddr1, appKey.KeyIndex, []byte{0x10, 0x00})
-			bindMsg1, seq = mesh.EncodeAccessMsg(
-				mesh.DevMsg,
-				seq,
-				src,
-				netData.NextAddr,
-				ttl,
-				netData.IvIndex,
-				devKey,
-				netData.NetKey,
-				bindPayload1,
-			)
-			sendProxyPdu(cln, write, bindMsg1)
-			res = <-messages
-			fmt.Printf("bind %x \n", res)
-			var bindMsg2 [][]byte
+			bindRsp1 := sendMsgWithRsp(netData.NextAddr, devKey, bindPayload1, mesh.DevMsg)
+			fmt.Printf("bind %x \n", bindRsp1)
 			bindPayload2 := models.AppKeyBind(elemAddr2, appKey.KeyIndex, []byte{0x10, 0x00})
-			bindMsg2, seq = mesh.EncodeAccessMsg(
-				mesh.DevMsg,
-				seq,
-				src,
-				netData.NextAddr,
-				ttl,
-				netData.IvIndex,
-				devKey,
-				netData.NetKey,
-				bindPayload2,
-			)
-			sendProxyPdu(cln, write, bindMsg2)
-			res = <-messages
-			fmt.Printf("bind %x \n", res)
+			bindRsp2 := sendMsgWithRsp(netData.NextAddr, devKey, bindPayload2, mesh.DevMsg)
+			fmt.Printf("bind %x \n", bindRsp2)
 			// Make Device
 			device = Device{
 				Name: args.Name,
@@ -164,7 +98,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 					}},
 				},
 			}
-			lastElemAdds = elemAddr2
+			lastElemAddr = elemAddr2
 		}
 		// Save Device
 		insertDevice(devicesCollection, device)
@@ -172,8 +106,8 @@ func registerMutation(schema *schemabuilder.Schema) {
 		group.DevAddrs = append(group.DevAddrs, netData.NextAddr)
 		updateGroup(groupsCollection, group)
 		// Update net data
-		netData.HubSeq = seq
-		netData.NextAddr = incrementAddr(lastElemAdds)
+		netData = getNetData(netCollection)
+		netData.NextAddr = incrementAddr(lastElemAddr)
 		updateNetData(netCollection, netData)
 		return device, nil
 	})
@@ -217,29 +151,14 @@ func registerMutation(schema *schemabuilder.Schema) {
 		appKey := getAppKeyByAid(appKeysCollection, group.Aid)
 		// Send State
 		if device.Elements[args.ElemNumber].State.StateType == "onoff" {
-			// Message vars
-			src := []byte{0x12, 0x34}
-			ttl := byte(0x04)
-			seq := netData.HubSeq
 			// Send msg
 			onoffPayload := models.OnOffSet(value[0])
-			onoffMsg, seq := mesh.EncodeAccessMsg(
-				mesh.AppMsg,
-				seq,
-				src,
+			sendMsgWithRsp(
 				device.Elements[args.ElemNumber].Addr,
-				ttl,
-				netData.IvIndex,
 				appKey.Key,
-				netData.NetKey,
 				onoffPayload,
+				mesh.AppMsg,
 			)
-			sendProxyPdu(cln, write, onoffMsg)
-			res := <-messages
-			fmt.Printf("onoff %x \n", res)
-			// Update net data
-			netData.HubSeq = seq
-			updateNetData(netCollection, netData)
 		}
 		updateDevice(devicesCollection, device)
 		return device.Elements[args.ElemNumber].State, nil
@@ -351,6 +270,7 @@ func schema() *graphql.Schema {
 	return builder.MustBuild()
 }
 
+// Checks if user is allowed
 func authenticate(input *graphql.ComputationInput, next graphql.MiddlewareNextFunc) *graphql.ComputationOutput {
 	name := input.ParsedQuery.Selections[0].Name
 	// Config hub dose not need a webKey

@@ -33,8 +33,8 @@ func main() {
 	netCollection = getCollection("net")
 	// Get net data
 	netData = getNetData(netCollection)
-	// Connect and get write characteristic
-	// cln, write = connectToProxy()
+	// Connect and get write characteristic if hub is configured
+	cln, write = connectToProxy()
 	fmt.Println("con")
 	// Build schema
 	schema := schema()
