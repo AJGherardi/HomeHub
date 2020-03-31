@@ -23,6 +23,7 @@ func registerQuery(schema *schemabuilder.Schema) {
 		return getDevices(devicesCollection), nil
 	})
 	obj.FieldFunc("getProvData", func() (ProvData, error) {
+		netData := getNetData(netCollection)
 		return encodeProvData(
 			netData.NetKey,
 			netData.NetKeyIndex,
@@ -49,6 +50,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		Addr   string
 		DevKey string
 	}) (Device, error) {
+		netData := getNetData(netCollection)
 		// Create device object
 		var device Device
 		device.Name = args.Name
@@ -111,6 +113,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 	obj.FieldFunc("addGroup", func(args struct {
 		Name string
 	}) (Group, error) {
+		netData := getNetData(netCollection)
 		// Generate an app key
 		appKey := make([]byte, 16)
 		rand.Read(appKey)
@@ -187,7 +190,6 @@ func registerMutation(schema *schemabuilder.Schema) {
 			HubSeq:          []byte{0x00, 0x00, 0x00},
 			WebKeys:         [][]byte{webKey},
 		})
-		netData = getNetData(netCollection)
 		return encodeBase64(webKey)
 	})
 }
@@ -276,6 +278,7 @@ func authenticate(input *graphql.ComputationInput, next graphql.MiddlewareNextFu
 		return output
 	}
 	// Verfiy web key
+	netData := getNetData(netCollection)
 	webKey := decodeBase64(input.Variables["webKey"].(string))
 	verify := checkWebKey(netData, webKey)
 	if !verify {

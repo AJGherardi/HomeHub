@@ -19,7 +19,6 @@ var (
 	netCollection     *mongo.Collection
 	write             *ble.Characteristic
 	cln               ble.Client
-	netData           NetData
 	messages          = make(chan []byte)
 )
 
@@ -31,8 +30,6 @@ func main() {
 	appKeysCollection = getCollection("appKeys")
 	devKeysCollection = getCollection("devKeys")
 	netCollection = getCollection("net")
-	// Get net data
-	netData = getNetData(netCollection)
 	// Connect and get write characteristic if hub is configured
 	cln, write = connectToProxy()
 	fmt.Println("con")

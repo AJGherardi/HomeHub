@@ -16,6 +16,7 @@ var (
 )
 
 func onNotify(req []byte) {
+	netData := getNetData(netCollection)
 	devKeys := getDevKeys(devKeysCollection)
 	appKeys := getAppKeys(appKeysCollection)
 	if req[0] == 0x00 {
