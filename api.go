@@ -49,6 +49,10 @@ func registerMutation(schema *schemabuilder.Schema) {
 		Addr   string
 		DevKey string
 	}) (Device, error) {
+		// Create device object
+		var device Device
+		device.Name = args.Name
+		device.Addr = netData.NextAddr
 		// Get group
 		groupAddr := decodeBase64(args.Addr)
 		group := getGroupByAddr(groupsCollection, groupAddr)
@@ -56,58 +60,51 @@ func registerMutation(schema *schemabuilder.Schema) {
 		appKey := getAppKeyByAid(appKeysCollection, group.Aid)
 		// Decode the dev key
 		devKey := decodeBase64(args.DevKey)
-		insertDevKey(devKeysCollection, mesh.DevKey{Addr: netData.NextAddr, Key: devKey})
+		insertDevKey(devKeysCollection, mesh.DevKey{Addr: device.Addr, Key: devKey})
 		// Send app key add
 		addPayload := models.AppKeyAdd(netData.NetKeyIndex, appKey.KeyIndex, appKey.Key)
-		addRsp := sendMsgWithRsp(netData.NextAddr, devKey, addPayload, mesh.DevMsg)
+		addRsp := sendMsgWithRsp(device.Addr, devKey, addPayload, mesh.DevMsg)
 		fmt.Printf("add %x \n", addRsp)
 		// Send app key bind for config data
-		bindPayload := models.AppKeyBind(netData.NextAddr, appKey.KeyIndex, []byte{0x13, 0x12})
-		bindRsp := sendMsgWithRsp(netData.NextAddr, devKey, bindPayload, mesh.DevMsg)
+		bindPayload := models.AppKeyBind(device.Addr, appKey.KeyIndex, []byte{0x13, 0x12})
+		bindRsp := sendMsgWithRsp(device.Addr, devKey, bindPayload, mesh.DevMsg)
 		fmt.Printf("bind %x \n", bindRsp)
 		// Get model id
 		compPayload := models.ConfigDataGet()
-		compRsp := sendMsgWithRsp(netData.NextAddr, appKey.Key, compPayload, mesh.AppMsg)
+		compRsp := sendMsgWithRsp(device.Addr, appKey.Key, compPayload, mesh.AppMsg)
 		fmt.Printf("comp %x \n", compRsp)
-		var device Device
-		var lastElemAddr []byte
 		if reflect.DeepEqual(compRsp[2:], []byte{0x00, 0x00}) {
 			devType := "2PowerSwitch"
-			var elemAddr1 []byte = netData.NextAddr
-			var elemAddr2 []byte = incrementAddr(elemAddr1)
+			elemAddr1 := device.Addr
+			elemAddr2 := incrementAddr(elemAddr1)
 			// Send app key bind for onoff
 			bindPayload1 := models.AppKeyBind(elemAddr1, appKey.KeyIndex, []byte{0x10, 0x00})
-			bindRsp1 := sendMsgWithRsp(netData.NextAddr, devKey, bindPayload1, mesh.DevMsg)
+			bindRsp1 := sendMsgWithRsp(device.Addr, devKey, bindPayload1, mesh.DevMsg)
 			fmt.Printf("bind %x \n", bindRsp1)
 			bindPayload2 := models.AppKeyBind(elemAddr2, appKey.KeyIndex, []byte{0x10, 0x00})
-			bindRsp2 := sendMsgWithRsp(netData.NextAddr, devKey, bindPayload2, mesh.DevMsg)
+			bindRsp2 := sendMsgWithRsp(device.Addr, devKey, bindPayload2, mesh.DevMsg)
 			fmt.Printf("bind %x \n", bindRsp2)
-			// Make Device
-			device = Device{
-				Name: args.Name,
-				Addr: netData.NextAddr,
-				Type: devType,
-				Elements: []Element{
-					Element{Addr: elemAddr1, State: State{
-						StateType: "onoff",
-						State:     []byte{0x00},
-					}},
-					Element{Addr: elemAddr2, State: State{
-						StateType: "onoff",
-						State:     []byte{0x00},
-					}},
-				},
+			// Set type and elements
+			device.Type = devType
+			device.Elements = []Element{
+				Element{Addr: elemAddr1, State: State{
+					StateType: "onoff",
+					State:     []byte{0x00},
+				}},
+				Element{Addr: elemAddr2, State: State{
+					StateType: "onoff",
+					State:     []byte{0x00},
+				}},
 			}
-			lastElemAddr = elemAddr2
 		}
 		// Save Device
 		insertDevice(devicesCollection, device)
 		// Add device to group
-		group.DevAddrs = append(group.DevAddrs, netData.NextAddr)
+		group.DevAddrs = append(group.DevAddrs, device.Addr)
 		updateGroup(groupsCollection, group)
 		// Update net data
 		netData = getNetData(netCollection)
-		netData.NextAddr = incrementAddr(lastElemAddr)
+		netData.NextAddr = incrementAddr(device.Elements[len(device.Elements)-1].Addr)
 		updateNetData(netCollection, netData)
 		return device, nil
 	})
