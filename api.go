@@ -97,11 +97,11 @@ func registerMutation(schema *schemabuilder.Schema) {
 			// Set type and elements
 			device.Type = devType
 			device.Elements = []Element{
-				Element{Addr: elemAddr1, State: State{
+				{Addr: elemAddr1, State: State{
 					StateType: "onoff",
 					State:     []byte{0x00},
 				}},
-				Element{Addr: elemAddr2, State: State{
+				{Addr: elemAddr2, State: State{
 					StateType: "onoff",
 					State:     []byte{0x00},
 				}},
