@@ -56,4 +56,29 @@ func main() {
 	// Serve graphql
 	http.Handle("/graphql", graphql.HTTPHandler(schema, authenticate))
 	http.ListenAndServe(":8080", nil)
+	// connectAndServe(schema)
 }
+
+// func connectAndServe(schema *graphql.Schema) {
+// 	u := url.URL{Scheme: "ws", Host: "localhost:8080", Path: "/graphql"}
+// 	log.Printf("connecting to %s", u.String())
+
+// 	c, _, _ := websocket.DefaultDialer.Dial(u.String(), nil)
+
+// 	makeCtx := func(ctx context.Context) context.Context {
+// 		return ctx
+// 	}
+
+// 	graphql.ServeJSONSocket(context.TODO(), c, schema, makeCtx, &simpleLogger{})
+// }
+
+// type simpleLogger struct {
+// }
+
+// func (s *simpleLogger) StartExecution(ctx context.Context, tags map[string]string, initial bool) {
+// }
+// func (s *simpleLogger) FinishExecution(ctx context.Context, tags map[string]string, delay time.Duration) {
+// }
+// func (s *simpleLogger) Error(ctx context.Context, err error, tags map[string]string) {
+// 	log.Printf("error:%v\n%s", tags, err)
+// }

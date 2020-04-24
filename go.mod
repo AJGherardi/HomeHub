@@ -6,7 +6,7 @@ require (
 	github.com/AJGherardi/GoMeshCryptro v0.0.0-20200331160329-8c8a2f8e1d96
 	github.com/go-ble/ble v0.0.0-20200120171844-0a73a9da88eb
 	github.com/gogo/protobuf v1.3.1 // indirect
-	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/gorilla/websocket v1.4.2
 	github.com/graphql-go/graphql v0.7.9 // indirect
 	github.com/hhatto/gocloc v0.3.2 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
