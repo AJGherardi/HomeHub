@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"os"
 	"sync"
@@ -75,9 +74,9 @@ func main() {
 	schema := schema()
 	introspection.AddIntrospectionToSchema(schema)
 	// Serve graphql
-	http.Handle("/graphql", graphql.HTTPHandler(schema))
-	http.ListenAndServe(":8080", nil)
-	// connectAndServe(schema)
+	// http.Handle("/graphql", handler(schema))
+	// http.ListenAndServe(":8080", nil)
+	connectAndServe(schema)
 }
 
 type request struct {
@@ -90,7 +89,7 @@ type response struct {
 	Errors []string    `json:"errors"`
 }
 
-func connectAndServe(s *graphql.Schema, m []graphql.MiddlewareFunc) {
+func connectAndServe(s *graphql.Schema, m ...graphql.MiddlewareFunc) {
 	// Connect to service
 	u := url.URL{Scheme: "ws", Host: "localhost:8080", Path: "/graphql"}
 	log.Printf("connecting to %s", u.String())
