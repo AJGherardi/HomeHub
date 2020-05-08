@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
-	"os"
 	"sync"
 
 	"github.com/go-ble/ble"
 	"github.com/gorilla/websocket"
+	"github.com/grandcat/zeroconf"
 	"github.com/micro/mdns"
 	"github.com/samsarahq/thunder/batch"
 	"github.com/samsarahq/thunder/graphql"
@@ -45,12 +46,24 @@ func main() {
 	// Check if configured
 	if getNetData(netCollection).ID == primitive.NilObjectID {
 		// Setup our mdns service
-		host, _ := os.Hostname()
-		fmt.Println(host)
-		mdnsInfo := []string{"Service for the alexander gherardi home hub"}
-		mdnsService, _ := mdns.NewMDNSService(host, "_alexandergherardi._tcp", "", "", 8080, nil, mdnsInfo)
-		// Create the mDNS server
-		mdnsServer, _ = mdns.NewServer(&mdns.Config{Zone: mdnsService})
+		server, err := zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
+		if err != nil {
+			panic(err)
+		}
+		defer server.Shutdown()
+
+		// Clean exit.
+		// sig := make(chan os.Signal, 1)
+		// signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+		// select {
+		// case <-sig:
+		// 	// Exit by user
+		// case <-time.After(time.Second * 120):
+		// 	// Exit by timeout
+		// }
+
+		// log.Println("Shutting down.")
+
 	} else {
 		// Connect and get write characteristic if hub is configured
 		cln, write = connectToProxy()
@@ -74,9 +87,11 @@ func main() {
 	schema := schema()
 	introspection.AddIntrospectionToSchema(schema)
 	// Serve graphql
-	// http.Handle("/graphql", handler(schema))
+	http.Handle("/graphql", graphql.HTTPHandler(schema))
+	http.ListenAndServe(":8080", nil)
+	// http.Handle("/graphql", graphql.HTTPHandler(schema))
 	// http.ListenAndServe(":8080", nil)
-	connectAndServe(schema)
+	// connectAndServe(schema)
 }
 
 type request struct {
@@ -91,7 +106,7 @@ type response struct {
 
 func connectAndServe(s *graphql.Schema, m ...graphql.MiddlewareFunc) {
 	// Connect to service
-	u := url.URL{Scheme: "ws", Host: "localhost:8080", Path: "/graphql"}
+	u := url.URL{Scheme: "ws", Host: "localhost:8080", Path: "/hub"}
 	log.Printf("connecting to %s", u.String())
 	socket, _, _ := websocket.DefaultDialer.Dial(u.String(), nil)
 	for {
