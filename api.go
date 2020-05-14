@@ -175,8 +175,6 @@ func registerMutation(schema *schemabuilder.Schema) {
 		return device.Elements[args.ElemNumber].State, nil
 	})
 	obj.FieldFunc("configHub", func() string {
-		// Stop mdns server
-		mdnsServer.Shutdown()
 		// Make a web key
 		webKey := make([]byte, 16)
 		rand.Read(webKey)

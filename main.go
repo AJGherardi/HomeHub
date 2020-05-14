@@ -11,7 +11,6 @@ import (
 	"github.com/go-ble/ble"
 	"github.com/gorilla/websocket"
 	"github.com/grandcat/zeroconf"
-	"github.com/micro/mdns"
 	"github.com/samsarahq/thunder/batch"
 	"github.com/samsarahq/thunder/graphql"
 	"github.com/samsarahq/thunder/graphql/introspection"
@@ -28,7 +27,6 @@ var (
 	appKeysCollection *mongo.Collection
 	devKeysCollection *mongo.Collection
 	netCollection     *mongo.Collection
-	mdnsServer        *mdns.Server
 	write             *ble.Characteristic
 	cln               ble.Client
 )
@@ -51,19 +49,6 @@ func main() {
 			panic(err)
 		}
 		defer server.Shutdown()
-
-		// Clean exit.
-		// sig := make(chan os.Signal, 1)
-		// signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
-		// select {
-		// case <-sig:
-		// 	// Exit by user
-		// case <-time.After(time.Second * 120):
-		// 	// Exit by timeout
-		// }
-
-		// log.Println("Shutting down.")
-
 	} else {
 		// Connect and get write characteristic if hub is configured
 		cln, write = connectToProxy()
@@ -89,8 +74,6 @@ func main() {
 	// Serve graphql
 	http.Handle("/graphql", graphql.HTTPHandler(schema))
 	http.ListenAndServe(":8080", nil)
-	// http.Handle("/graphql", graphql.HTTPHandler(schema))
-	// http.ListenAndServe(":8080", nil)
 	// connectAndServe(schema)
 }
 
