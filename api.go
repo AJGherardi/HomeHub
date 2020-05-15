@@ -174,7 +174,13 @@ func registerMutation(schema *schemabuilder.Schema) {
 		updateDevice(devicesCollection, device)
 		return device.Elements[args.ElemNumber].State, nil
 	})
-	obj.FieldFunc("configHub", func() string {
+	obj.FieldFunc("configHub", func() (string, error) {
+		// Check if configured
+		if getNetData(netCollection).ID != primitive.NilObjectID {
+			return "", errors.New("already configured")
+		}
+		// Stop the mdns server
+		mdns.Shutdown()
 		// Make a web key
 		webKey := make([]byte, 16)
 		rand.Read(webKey)
@@ -201,7 +207,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 			HubSeq:          []byte{0x00, 0x00, 0x00},
 			WebKeys:         [][]byte{webKey},
 		})
-		return encodeBase64(webKey)
+		return encodeBase64(webKey), nil
 	})
 }
 

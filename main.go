@@ -29,6 +29,7 @@ var (
 	netCollection     *mongo.Collection
 	write             *ble.Characteristic
 	cln               ble.Client
+	mdns              *zeroconf.Server
 )
 
 func main() {
@@ -43,31 +44,13 @@ func main() {
 
 	// Check if configured
 	if getNetData(netCollection).ID == primitive.NilObjectID {
-		// Setup our mdns service
-		server, err := zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
-		if err != nil {
-			panic(err)
-		}
-		defer server.Shutdown()
+		// Setup the mdns service
+		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 	} else {
 		// Connect and get write characteristic if hub is configured
 		cln, write = connectToProxy()
 		fmt.Println("con")
 	}
-	insertNetData(netCollection, NetData{
-		ID: primitive.NewObjectID(),
-		NetKey: []byte{0xaf, 0xc3, 0x27, 0x0e, 0xda,
-			0x88, 0x02, 0xf7, 0x2c, 0x1e, 0x53,
-			0x24, 0x38, 0xa9, 0x79, 0xeb,
-		},
-		NetKeyIndex:     []byte{0x00, 0x00},
-		NextAppKeyIndex: []byte{0x01, 0x00},
-		Flags:           []byte{0x00},
-		IvIndex:         []byte{0x00, 0x00, 0x00, 0x00},
-		NextAddr:        []byte{0x00, 0x01},
-		NextGroupAddr:   []byte{0xc0, 0x00},
-		HubSeq:          []byte{0x00, 0x00, 0x00},
-	})
 	// Build schema
 	schema := schema()
 	introspection.AddIntrospectionToSchema(schema)
