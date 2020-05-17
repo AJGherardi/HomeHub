@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"reflect"
 	"time"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
@@ -80,10 +79,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		bindRsp := sendMsgWithRsp(device.Addr, devKey, bindPayload, mesh.DevMsg)
 		fmt.Printf("bind %x \n", bindRsp)
 		// Get model id
-		compPayload := models.ConfigDataGet()
-		compRsp := sendMsgWithRsp(device.Addr, appKey.Key, compPayload, mesh.AppMsg)
-		fmt.Printf("comp %x \n", compRsp)
-		if reflect.DeepEqual(compRsp[2:], []byte{0x00, 0x00}) {
+		if true {
 			devType := "2PowerSwitch"
 			elemAddr1 := device.Addr
 			elemAddr2 := incrementAddr(elemAddr1)
