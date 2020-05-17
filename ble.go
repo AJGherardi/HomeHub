@@ -15,6 +15,7 @@ var (
 	ttl      = byte(0x04)
 	messages = make(map[[2]byte](chan []byte))
 	msg      = new(mesh.Msg)
+	d        ble.Device
 )
 
 func onNotify(req []byte) {
@@ -41,12 +42,22 @@ func filter(a ble.Advertisement) bool {
 	return false
 }
 
-func connectToProxy() (ble.Client, *ble.Characteristic) {
-	d, err := dev.NewDevice("default")
-	if err != nil {
-		fmt.Println(err.Error())
+func reconnectOnDisconnect(ch <-chan struct{}) {
+	// Check if open
+	_, open := <-ch
+	if !open {
+		messages = make(map[[2]byte](chan []byte))
+		cln, write = connectToProxy()
 	}
-	ble.SetDefaultDevice(d)
+
+}
+
+func connectToProxy() (ble.Client, *ble.Characteristic) {
+	if d == nil {
+		d, _ = dev.NewDevice("default")
+		ble.SetDefaultDevice(d)
+	}
+
 	// Find and Connect to Mesh Node
 	ctx := ble.WithSigHandler(context.WithTimeout(context.Background(), 15*time.Second))
 	cln, _ := ble.Connect(ctx, filter)
@@ -65,6 +76,7 @@ func connectToProxy() (ble.Client, *ble.Characteristic) {
 			addReceiver(element.Addr)
 		}
 	}
+	fmt.Println("con")
 	return cln, write
 }
 

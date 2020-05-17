@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -15,7 +14,6 @@ import (
 	"github.com/samsarahq/thunder/graphql"
 	"github.com/samsarahq/thunder/graphql/introspection"
 	"github.com/samsarahq/thunder/reactive"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -40,8 +38,6 @@ func main() {
 	appKeysCollection = getCollection("appKeys")
 	devKeysCollection = getCollection("devKeys")
 	netCollection = getCollection("net")
-	netCollection.DeleteMany(context.TODO(), bson.D{})
-
 	// Check if configured
 	if getNetData(netCollection).ID == primitive.NilObjectID {
 		// Setup the mdns service
@@ -49,7 +45,7 @@ func main() {
 	} else {
 		// Connect and get write characteristic if hub is configured
 		cln, write = connectToProxy()
-		fmt.Println("con")
+		go reconnectOnDisconnect(cln.Disconnected())
 	}
 	// Build schema
 	schema := schema()
