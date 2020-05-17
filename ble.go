@@ -48,8 +48,8 @@ func reconnectOnDisconnect(ch <-chan struct{}) {
 	if !open {
 		messages = make(map[[2]byte](chan []byte))
 		cln, write = connectToProxy()
+		go reconnectOnDisconnect(cln.Disconnected())
 	}
-
 }
 
 func connectToProxy() (ble.Client, *ble.Characteristic) {
