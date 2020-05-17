@@ -21,6 +21,18 @@ func registerQuery(schema *schemabuilder.Schema) {
 	obj.FieldFunc("listDevices", func() ([]Device, error) {
 		return getDevices(devicesCollection), nil
 	})
+	obj.FieldFunc("listDevicesByGroup", func(args struct{ Addr string }) ([]Device, error) {
+		// Get group by addr
+		groupAddr := decodeBase64(args.Addr)
+		group := getGroupByAddr(groupsCollection, groupAddr)
+		// Make list of devices
+		var devices []Device
+		for _, devAddr := range group.DevAddrs {
+			device := getDeviceByAddr(devicesCollection, devAddr)
+			devices = append(devices, device)
+		}
+		return devices, nil
+	})
 	obj.FieldFunc("listGroups", func() ([]Group, error) {
 		return getGroups(groupsCollection), nil
 	})
