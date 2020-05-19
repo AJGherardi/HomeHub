@@ -10,7 +10,6 @@ require (
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/graphql-go/graphql v0.7.9 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
-	github.com/micro/mdns v0.3.0
 	github.com/miekg/dns v1.1.29 // indirect
 	github.com/samsarahq/go v0.0.0-20191220233105-8077c9fbaed5 // indirect
 	github.com/samsarahq/thunder v0.5.0

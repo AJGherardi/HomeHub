@@ -10,4 +10,4 @@ RUN echo "machine github.com    login AJGherardi password 69785baa36404144f8d389
 
 RUN go get github.com/githubnemo/CompileDaemon
 
-ENTRYPOINT CompileDaemon --build="go build ." --command=./HomeHub
+ENTRYPOINT ./start.sh
