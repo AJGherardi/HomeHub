@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -43,9 +44,14 @@ func main() {
 		// Setup the mdns service
 		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 	} else {
-		// Connect and get write characteristic if hub is configured
-		cln, write = connectToProxy()
-		go reconnectOnDisconnect(cln.Disconnected())
+		// Check if there are no devices
+		if len(getDevices(devicesCollection)) == 0 {
+			fmt.Println("empty")
+		} else {
+			// Connect and get write characteristic if hub is configured
+			cln, write = connectToProxy()
+			go reconnectOnDisconnect(cln.Disconnected())
+		}
 	}
 	// Build schema
 	schema := schema()

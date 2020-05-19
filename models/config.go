@@ -4,6 +4,12 @@ import (
 	"encoding/binary"
 )
 
+// NodeReset resets a node
+func NodeReset() []byte {
+	opcode := []byte{0x80, 0x49}
+	return opcode
+}
+
 // AppKeyAdd makes an appkey add payload
 func AppKeyAdd(netIndex []byte, appIndex []byte, appKey []byte) []byte {
 	opcode := []byte{0x00}

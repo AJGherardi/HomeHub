@@ -66,6 +66,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 	}) (Device, error) {
 		if cln == nil {
 			cln, write = connectToProxy()
+			go reconnectOnDisconnect(cln.Disconnected())
 		}
 		netData := getNetData(netCollection)
 		// Add device receiver
@@ -128,6 +129,18 @@ func registerMutation(schema *schemabuilder.Schema) {
 		netData.NextAddr = incrementAddr(device.Elements[len(device.Elements)-1].Addr)
 		updateNetData(netCollection, netData)
 		return device, nil
+	})
+	obj.FieldFunc("resetDevice", func(args struct{ Addr string }) (bool, error) {
+		// Get devKey
+		devAddr := decodeBase64(args.Addr)
+		devKey := getDevKeyByAddr(devKeysCollection, devAddr)
+		// Remove device from database
+		deleteDevice(devicesCollection, devAddr)
+		// Send reset paylode
+		resetPaylode := models.NodeReset()
+		resetRsp := sendMsgWithRsp(devAddr, devKey.Key, resetPaylode, mesh.DevMsg)
+		fmt.Printf("reset %x \n", resetRsp)
+		return true, nil
 	})
 	obj.FieldFunc("addGroup", func(args struct {
 		Name string

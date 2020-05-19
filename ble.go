@@ -45,6 +45,10 @@ func filter(a ble.Advertisement) bool {
 func reconnectOnDisconnect(ch <-chan struct{}) {
 	// Check if open
 	_, open := <-ch
+	if len(getDevices(devicesCollection)) == 0 {
+		cln, write = nil, nil
+		return
+	}
 	if !open {
 		messages = make(map[[2]byte](chan []byte))
 		cln, write = connectToProxy()

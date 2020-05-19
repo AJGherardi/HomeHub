@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
@@ -144,6 +145,14 @@ func updateDevice(collection *mongo.Collection, data Device) {
 			"elements": data.Elements,
 		}},
 	)
+}
+
+func deleteDevice(collection *mongo.Collection, addr []byte) {
+	r, _ := collection.DeleteOne(
+		context.TODO(),
+		bson.M{"addr": addr},
+	)
+	fmt.Println(r.DeletedCount)
 }
 
 func getAppKeys(collection *mongo.Collection) []mesh.AppKey {
