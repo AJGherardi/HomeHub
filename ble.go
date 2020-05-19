@@ -91,6 +91,28 @@ func sendProxyPdu(cln ble.Client, write *ble.Characteristic, msg [][]byte) {
 	}
 }
 
+// Sends a mesh message without a response
+func sendMsgWithoutRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgType) {
+	netData := getNetData(netCollection)
+	// Encode msg and get new seq
+	msg, seq := mesh.EncodeAccessMsg(
+		msgType,
+		netData.HubSeq,
+		src,
+		dst,
+		ttl,
+		netData.IvIndex,
+		key,
+		netData.NetKey,
+		payload,
+	)
+	// Send msg
+	sendProxyPdu(cln, write, msg)
+	// Update seq
+	netData.HubSeq = seq
+	updateNetData(netCollection, netData)
+}
+
 // Sends a mesh message and returns a response
 func sendMsgWithRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgType) []byte {
 	netData := getNetData(netCollection)

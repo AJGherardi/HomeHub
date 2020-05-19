@@ -138,8 +138,14 @@ func registerMutation(schema *schemabuilder.Schema) {
 		deleteDevice(devicesCollection, devAddr)
 		// Send reset paylode
 		resetPaylode := models.NodeReset()
-		resetRsp := sendMsgWithRsp(devAddr, devKey.Key, resetPaylode, mesh.DevMsg)
-		fmt.Printf("reset %x \n", resetRsp)
+		sendMsgWithoutRsp(devAddr, devKey.Key, resetPaylode, mesh.DevMsg)
+		// Reset the receivers
+		devices := getDevices(devicesCollection)
+		for _, device := range devices {
+			for _, element := range device.Elements {
+				addReceiver(element.Addr)
+			}
+		}
 		return true, nil
 	})
 	obj.FieldFunc("addGroup", func(args struct {

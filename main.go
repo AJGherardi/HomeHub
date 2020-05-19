@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -45,9 +44,7 @@ func main() {
 		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 	} else {
 		// Check if there are no devices
-		if len(getDevices(devicesCollection)) == 0 {
-			fmt.Println("empty")
-		} else {
+		if len(getDevices(devicesCollection)) != 0 {
 			// Connect and get write characteristic if hub is configured
 			cln, write = connectToProxy()
 			go reconnectOnDisconnect(cln.Disconnected())
