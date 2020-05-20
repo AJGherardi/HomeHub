@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
@@ -130,15 +131,18 @@ func registerMutation(schema *schemabuilder.Schema) {
 		updateNetData(netCollection, netData)
 		return device, nil
 	})
-	obj.FieldFunc("resetDevice", func(args struct{ Addr string }) (bool, error) {
+	obj.FieldFunc("removeDevice", func(args struct{ Addr string }) (Device, error) {
 		// Get devKey
 		devAddr := decodeBase64(args.Addr)
+		device := getDeviceByAddr(devicesCollection, devAddr)
 		devKey := getDevKeyByAddr(devKeysCollection, devAddr)
 		// Remove device from database
 		deleteDevice(devicesCollection, devAddr)
 		// Send reset paylode
 		resetPaylode := models.NodeReset()
 		sendMsgWithoutRsp(devAddr, devKey.Key, resetPaylode, mesh.DevMsg)
+		// Remove devkey
+		deleteDevKey(devKeysCollection, devAddr)
 		// Reset the receivers
 		devices := getDevices(devicesCollection)
 		for _, device := range devices {
@@ -146,7 +150,43 @@ func registerMutation(schema *schemabuilder.Schema) {
 				addReceiver(element.Addr)
 			}
 		}
-		return true, nil
+		// Remove devAddr from group
+		group := getGroupByDevAddr(groupsCollection, devAddr)
+		for i, addr := range group.DevAddrs {
+			if reflect.DeepEqual(addr, devAddr) {
+				group.DevAddrs = removeDevAddr(group.DevAddrs, i)
+			}
+		}
+		updateGroup(groupsCollection, group)
+		return device, nil
+	})
+	obj.FieldFunc("removeGroup", func(args struct{ Addr string }) (Group, error) {
+		// Get groupAddr
+		groupAddr := decodeBase64(args.Addr)
+		group := getGroupByAddr(groupsCollection, groupAddr)
+		// Delete devices
+		for _, devAddr := range group.DevAddrs {
+			// Get devKey
+			devKey := getDevKeyByAddr(devKeysCollection, devAddr)
+			// Remove device from database
+			deleteDevice(devicesCollection, devAddr)
+			// Send reset paylode
+			resetPaylode := models.NodeReset()
+			sendMsgWithoutRsp(devAddr, devKey.Key, resetPaylode, mesh.DevMsg)
+			// Remove devkey
+			deleteDevKey(devKeysCollection, devAddr)
+		}
+		// Reset the receivers
+		devices := getDevices(devicesCollection)
+		for _, device := range devices {
+			for _, element := range device.Elements {
+				addReceiver(element.Addr)
+			}
+		}
+		// Remove the group and app key
+		deleteGroup(groupsCollection, groupAddr)
+		deleteAppKey(appKeysCollection, group.Aid)
+		return group, nil
 	})
 	obj.FieldFunc("addGroup", func(args struct {
 		Name string

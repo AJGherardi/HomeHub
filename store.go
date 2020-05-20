@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
@@ -108,6 +107,13 @@ func updateGroup(collection *mongo.Collection, group Group) {
 	)
 }
 
+func deleteGroup(collection *mongo.Collection, addr []byte) {
+	collection.DeleteOne(
+		context.TODO(),
+		bson.M{"addr": addr},
+	)
+}
+
 func getDevices(collection *mongo.Collection) []Device {
 	var devices []Device
 	// Get all Devices
@@ -148,11 +154,10 @@ func updateDevice(collection *mongo.Collection, data Device) {
 }
 
 func deleteDevice(collection *mongo.Collection, addr []byte) {
-	r, _ := collection.DeleteOne(
+	collection.DeleteOne(
 		context.TODO(),
 		bson.M{"addr": addr},
 	)
-	fmt.Println(r.DeletedCount)
 }
 
 func getAppKeys(collection *mongo.Collection) []mesh.AppKey {
@@ -180,6 +185,13 @@ func insertAppKey(collection *mongo.Collection, key mesh.AppKey) {
 	collection.InsertOne(context.TODO(), key)
 }
 
+func deleteAppKey(collection *mongo.Collection, aid []byte) {
+	collection.DeleteOne(
+		context.TODO(),
+		bson.M{"aid": aid},
+	)
+}
+
 func getDevKeys(collection *mongo.Collection) []mesh.DevKey {
 	var keys []mesh.DevKey
 	// Get all keys
@@ -205,6 +217,13 @@ func insertDevKey(collection *mongo.Collection, key mesh.DevKey) {
 	collection.InsertOne(context.TODO(), key)
 }
 
+func deleteDevKey(collection *mongo.Collection, addr []byte) {
+	collection.DeleteOne(
+		context.TODO(),
+		bson.M{"addr": addr},
+	)
+}
+
 func checkWebKey(data NetData, webKey []byte) bool {
 	keys := data.WebKeys
 	for _, key := range keys {
@@ -213,4 +232,8 @@ func checkWebKey(data NetData, webKey []byte) bool {
 		}
 	}
 	return false
+}
+
+func removeDevAddr(slice [][]byte, i int) [][]byte {
+	return append(slice[:i], slice[i+1:]...)
 }
