@@ -24,7 +24,10 @@ func onNotify(req []byte) {
 	appKeys := getAppKeys(appKeysCollection)
 	// Check if it is a network pdu
 	if req[0] == 0x00 {
-		cmp := mesh.DecodePdu(msg, req[1:], netData.NetKey, netData.IvIndex, appKeys, devKeys)
+		cmp, err := mesh.DecodePdu(msg, req[1:], netData.NetKey, netData.IvIndex, appKeys, devKeys)
+		if err != nil {
+			fmt.Println(err)
+		}
 		if cmp {
 			var msgSrc [2]byte
 			copy(msgSrc[:], msg.Src)
@@ -45,6 +48,7 @@ func filter(a ble.Advertisement) bool {
 func reconnectOnDisconnect(ch <-chan struct{}) {
 	// Check if open
 	_, open := <-ch
+	// Dont reconect if there are no devices
 	if len(getDevices(devicesCollection)) == 0 {
 		cln, write = nil, nil
 		return
@@ -58,13 +62,18 @@ func reconnectOnDisconnect(ch <-chan struct{}) {
 
 func connectToProxy() (ble.Client, *ble.Characteristic) {
 	if d == nil {
-		d, _ = dev.NewDevice("default")
+		d, err := dev.NewDevice("default")
+		if err != nil {
+			fmt.Println(err)
+		}
 		ble.SetDefaultDevice(d)
 	}
-
 	// Find and Connect to Mesh Node
 	ctx := ble.WithSigHandler(context.WithTimeout(context.Background(), 15*time.Second))
-	cln, _ := ble.Connect(ctx, filter)
+	cln, err := ble.Connect(ctx, filter)
+	if err != nil {
+		fmt.Println(err)
+	}
 	// Set Mtu
 	cln.ExchangeMTU(128)
 	// Get Characteristics from Profile
@@ -95,7 +104,7 @@ func sendProxyPdu(cln ble.Client, write *ble.Characteristic, msg [][]byte) {
 func sendMsgWithoutRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgType) {
 	netData := getNetData(netCollection)
 	// Encode msg and get new seq
-	msg, seq := mesh.EncodeAccessMsg(
+	msg, seq, err := mesh.EncodeAccessMsg(
 		msgType,
 		netData.HubSeq,
 		src,
@@ -106,6 +115,9 @@ func sendMsgWithoutRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgT
 		netData.NetKey,
 		payload,
 	)
+	if err != nil {
+		fmt.Println(err)
+	}
 	// Send msg
 	sendProxyPdu(cln, write, msg)
 	// Update seq
@@ -117,7 +129,7 @@ func sendMsgWithoutRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgT
 func sendMsgWithRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgType) []byte {
 	netData := getNetData(netCollection)
 	// Encode msg and get new seq
-	msg, seq := mesh.EncodeAccessMsg(
+	msg, seq, err := mesh.EncodeAccessMsg(
 		msgType,
 		netData.HubSeq,
 		src,
@@ -128,6 +140,9 @@ func sendMsgWithRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgType
 		netData.NetKey,
 		payload,
 	)
+	if err != nil {
+		fmt.Println(err)
+	}
 	// Send msg
 	sendProxyPdu(cln, write, msg)
 	// Update seq

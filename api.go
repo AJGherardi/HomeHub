@@ -196,7 +196,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		// Generate an app key
 		appKey := make([]byte, 16)
 		rand.Read(appKey)
-		aid := mesh.GetAid(appKey)
+		aid, _ := mesh.GetAid(appKey)
 		// Add groups app key
 		insertAppKey(appKeysCollection, mesh.AppKey{
 			Aid:      []byte{aid},
