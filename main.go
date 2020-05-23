@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"sync"
 
 	"github.com/go-ble/ble"
+	"github.com/go-ble/ble/examples/lib/dev"
 	"github.com/gorilla/websocket"
 	"github.com/grandcat/zeroconf"
 	"github.com/samsarahq/thunder/batch"
@@ -38,6 +40,12 @@ func main() {
 	appKeysCollection = getCollection("appKeys")
 	devKeysCollection = getCollection("devKeys")
 	netCollection = getCollection("net")
+	// Get ble device
+	d, err := dev.NewDevice("default")
+	if err != nil {
+		fmt.Println(err)
+	}
+	ble.SetDefaultDevice(d)
 	// Check if configured
 	if getNetData(netCollection).ID == primitive.NilObjectID {
 		// Setup the mdns service

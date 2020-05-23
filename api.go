@@ -231,12 +231,13 @@ func registerMutation(schema *schemabuilder.Schema) {
 		if device.Elements[args.ElemNumber].State.StateType == "onoff" {
 			// Send msg
 			onoffPayload := models.OnOffSet(value[0])
-			sendMsgWithRsp(
+			onoffRsp := sendMsgWithRsp(
 				device.Elements[args.ElemNumber].Addr,
 				appKey.Key,
 				onoffPayload,
 				mesh.AppMsg,
 			)
+			fmt.Printf("state %x \n", onoffRsp)
 		}
 		updateDevice(devicesCollection, device)
 		return device.Elements[args.ElemNumber].State, nil

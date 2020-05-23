@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
 	"github.com/go-ble/ble"
-	"github.com/go-ble/ble/examples/lib/dev"
 )
 
 var (
@@ -61,15 +59,8 @@ func reconnectOnDisconnect(ch <-chan struct{}) {
 }
 
 func connectToProxy() (ble.Client, *ble.Characteristic) {
-	if d == nil {
-		d, err := dev.NewDevice("default")
-		if err != nil {
-			fmt.Println(err)
-		}
-		ble.SetDefaultDevice(d)
-	}
 	// Find and Connect to Mesh Node
-	ctx := ble.WithSigHandler(context.WithTimeout(context.Background(), 15*time.Second))
+	ctx := context.TODO()
 	cln, err := ble.Connect(ctx, filter)
 	if err != nil {
 		fmt.Println(err)
