@@ -61,15 +61,27 @@ func registerQuery(schema *schemabuilder.Schema) {
 func registerMutation(schema *schemabuilder.Schema) {
 	obj := schema.Mutation()
 	obj.FieldFunc("addDevice", func(args struct {
-		Name   string
-		Addr   string
-		DevKey string
+		Name string
+		Addr string
 	}) (Device, error) {
-		if cln == nil {
-			cln, write = connectToProxy()
-			go reconnectOnDisconnect(cln.Disconnected())
-		}
+		// Get net data
 		netData := getNetData(netCollection)
+		// Connect to unprovisioned device
+		cln, write, read = connectToUnprovisioned()
+		// Provision device
+		devKey := provisionDevice(
+			cln,
+			write,
+			netData.NetKey,
+			netData.NetKeyIndex,
+			netData.Flags,
+			netData.IvIndex,
+			netData.NextAddr,
+		)
+		cln.CancelConnection()
+		// Connect to proxy node
+		cln, write, read = connectToProxy()
+		go reconnectOnDisconnect(cln.Disconnected())
 		// Add device receiver
 		addReceiver(netData.NextAddr)
 		// Create device object
@@ -81,8 +93,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		group := getGroupByAddr(groupsCollection, groupAddr)
 		// Get app key
 		appKey := getAppKeyByAid(appKeysCollection, group.Aid)
-		// Decode the dev key
-		devKey := decodeBase64(args.DevKey)
+		// Insert the dev key
 		insertDevKey(devKeysCollection, mesh.DevKey{Addr: device.Addr, Key: devKey})
 		// Send app key add
 		addPayload := models.AppKeyAdd(netData.NetKeyIndex, appKey.KeyIndex, appKey.Key)
@@ -269,7 +280,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 			NetKeyIndex:     []byte{0x00, 0x00},
 			NextAppKeyIndex: []byte{0x01, 0x00},
 			Flags:           []byte{0x00},
-			IvIndex:         []byte{0x00, 0x00, 0x00, 0x00},
+			IvIndex:         []byte{0x00, 0x00, 0x00, 0x11},
 			NextAddr:        []byte{0x00, 0x01},
 			NextGroupAddr:   []byte{0xc0, 0x00},
 			HubSeq:          []byte{0x00, 0x00, 0x00},

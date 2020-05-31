@@ -3,7 +3,8 @@ module github.com/AJGherardi/HomeHub
 go 1.13
 
 require (
-	github.com/AJGherardi/GoMeshCryptro v0.0.0-20200522003036-b4f1cd409cac
+	github.com/AJGherardi/GoMeshCryptro v0.0.0-20200528201708-514427b86472
+	github.com/aead/ecdh v0.2.0 // indirect
 	github.com/andreburgaud/crypt2go v0.11.0 // indirect
 	github.com/go-ble/ble v0.0.0-20200120171844-0a73a9da88eb
 	github.com/gogo/protobuf v1.3.1 // indirect

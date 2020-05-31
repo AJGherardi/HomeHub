@@ -9,11 +9,12 @@ import (
 )
 
 var (
-	src      = []byte{0x12, 0x34}
-	ttl      = byte(0x04)
-	messages = make(map[[2]byte](chan []byte))
-	msg      = new(mesh.Msg)
-	d        ble.Device
+	src          = []byte{0x12, 0x34}
+	ttl          = byte(0x04)
+	messages     = make(map[[2]byte](chan []byte))
+	provMessages = make(chan []byte)
+	msg          = new(mesh.Msg)
+	d            ble.Device
 )
 
 func onNotify(req []byte) {
@@ -33,12 +34,24 @@ func onNotify(req []byte) {
 			msg = new(mesh.Msg)
 		}
 	}
+	// Check if it is a prov pdu
+	if req[0] == 0x03 {
+		provMessages <- req[2:]
+	}
 }
 
-func filter(a ble.Advertisement) bool {
+func proxyFilter(a ble.Advertisement) bool {
 	if len(a.Services()) > 0 {
 		service := a.Services()[0]
 		return ble.UUID16(0x1828).Equal(service)
+	}
+	return false
+}
+
+func provFilter(a ble.Advertisement) bool {
+	if len(a.Services()) > 0 {
+		service := a.Services()[0]
+		return ble.UUID16(0x1827).Equal(service)
 	}
 	return false
 }
@@ -53,15 +66,15 @@ func reconnectOnDisconnect(ch <-chan struct{}) {
 	}
 	if !open {
 		messages = make(map[[2]byte](chan []byte))
-		cln, write = connectToProxy()
+		cln, write, read = connectToProxy()
 		go reconnectOnDisconnect(cln.Disconnected())
 	}
 }
 
-func connectToProxy() (ble.Client, *ble.Characteristic) {
+func connectToProxy() (ble.Client, *ble.Characteristic, *ble.Characteristic) {
 	// Find and Connect to Mesh Node
 	ctx := context.TODO()
-	cln, err := ble.Connect(ctx, filter)
+	cln, err := ble.Connect(ctx, proxyFilter)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -81,7 +94,26 @@ func connectToProxy() (ble.Client, *ble.Characteristic) {
 		}
 	}
 	fmt.Println("con")
-	return cln, write
+	return cln, write, read
+}
+
+func connectToUnprovisioned() (ble.Client, *ble.Characteristic, *ble.Characteristic) {
+	// Find and Connect to Mesh Node
+	ctx := context.TODO()
+	cln, err := ble.Connect(ctx, provFilter)
+	if err != nil {
+		fmt.Println(err)
+	}
+	// Set Mtu
+	cln.ExchangeMTU(128)
+	// Get Characteristics from Profile
+	p, _ := cln.DiscoverProfile(true)
+	write := p.FindCharacteristic(ble.NewCharacteristic(ble.UUID16(0x2adb)))
+	read := p.FindCharacteristic(ble.NewCharacteristic(ble.UUID16(0x2adc)))
+	// Subscribe to mesh Out Characteristic
+	cln.Subscribe(read, false, onNotify)
+	fmt.Println("con")
+	return cln, write, read
 }
 
 func sendProxyPdu(cln ble.Client, write *ble.Characteristic, msg [][]byte) {
@@ -89,6 +121,11 @@ func sendProxyPdu(cln ble.Client, write *ble.Characteristic, msg [][]byte) {
 		proxyPdu := append([]byte{0x00}, pdu...)
 		cln.WriteCharacteristic(write, proxyPdu, false)
 	}
+}
+
+func sendProvPdu(cln ble.Client, write *ble.Characteristic, pdu []byte) {
+	proxyPdu := append([]byte{0x03}, pdu...)
+	cln.WriteCharacteristic(write, proxyPdu, false)
 }
 
 // Sends a mesh message without a response
@@ -151,4 +188,58 @@ func addReceiver(addr []byte) {
 	var recAddr [2]byte
 	copy(recAddr[:], addr)
 	messages[recAddr] = make(chan []byte)
+}
+
+func provisionDevice(cln ble.Client, write *ble.Characteristic, netKey, keyIndex, flags, ivIndex, devAddr []byte) []byte {
+	// Gen prov keys
+	provPrivKey, provPubKeyX, provPubKeyY, _ := mesh.GenerateProvKeys()
+	provPubKey := append(provPubKeyX, provPubKeyY...)
+	// Send invite
+	invite := []byte{0x00, 0x00}
+	sendProvPdu(cln, write, invite)
+	// Recive Capabilities
+	capabilities := <-provMessages
+	// Send start
+	start := []byte{0x00, 0x00, 0x00, 0x00, 0x00}
+	startPdu := append([]byte{0x02}, start...)
+	sendProvPdu(cln, write, startPdu)
+	// Send public Key
+	pubKeyPdu := append([]byte{0x03}, provPubKey...)
+	sendProvPdu(cln, write, pubKeyPdu)
+	// Recive dev public key
+	devPubKey := <-provMessages
+	// Calculate shared secret
+	secret := mesh.GetSharedSecret(devPubKey, provPrivKey)
+	// Get inputs
+	inputs := append([]byte{0x00}, capabilities...)
+	inputs = append(inputs, []byte{0x00, 0x00, 0x00, 0x00, 0x00}...)
+	inputs = append(inputs, provPubKey...)
+	inputs = append(inputs, devPubKey...)
+	// Generate confirmation
+	conf, provRandom, confSalt, _ := mesh.GenerateConfData(inputs, secret)
+	// Send confirmation
+	confPdu := append([]byte{0x05}, conf...)
+	sendProvPdu(cln, write, confPdu)
+	// Recive confirmation
+	_ = <-provMessages
+	// Send random
+	randomPdu := append([]byte{0x06}, provRandom...)
+	sendProvPdu(cln, write, randomPdu)
+	// Recive random
+	devRandom := <-provMessages
+	provData := append(netKey, keyIndex...)
+	provData = append(provData, flags...)
+	provData = append(provData, ivIndex...)
+	provData = append(provData, devAddr...)
+	fmt.Printf("provData %x \n", provData)
+	// Gen and send prov data
+	encProvData, provSalt, _ := mesh.GetProvData(secret, confSalt, provRandom, devRandom, netKey, keyIndex, flags, ivIndex, devAddr)
+	// Send prov data
+	provDataPdu := append([]byte{0x07}, encProvData...)
+	sendProvPdu(cln, write, provDataPdu)
+	// Recive Complete
+	_ = <-provMessages
+	// Get Dev Key
+	devKey, _ := mesh.GetDevKey(secret, provSalt)
+	return devKey
 }

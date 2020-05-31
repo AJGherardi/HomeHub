@@ -28,6 +28,7 @@ var (
 	devKeysCollection *mongo.Collection
 	netCollection     *mongo.Collection
 	write             *ble.Characteristic
+	read              *ble.Characteristic
 	cln               ble.Client
 	mdns              *zeroconf.Server
 )
@@ -54,7 +55,7 @@ func main() {
 		// Check if there are no devices
 		if len(getDevices(devicesCollection)) != 0 {
 			// Connect and get write characteristic if hub is configured
-			cln, write = connectToProxy()
+			cln, write, read = connectToProxy()
 			go reconnectOnDisconnect(cln.Disconnected())
 		}
 	}
