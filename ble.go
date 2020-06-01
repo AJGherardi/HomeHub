@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
 	"github.com/go-ble/ble"
@@ -93,14 +94,33 @@ func connectToProxy() (ble.Client, *ble.Characteristic, *ble.Characteristic) {
 			addReceiver(element.Addr)
 		}
 	}
-	fmt.Println("con")
+	fmt.Println("test")
 	return cln, write, read
 }
 
-func connectToUnprovisioned() (ble.Client, *ble.Characteristic, *ble.Characteristic) {
+func findDevices() []string {
+	ctx := ble.WithSigHandler(context.WithTimeout(context.Background(), 10*time.Second))
+	adv, _ := ble.Find(ctx, false, provFilter)
+	var addrs []string
+	for _, devices := range adv {
+		addrs = append(addrs, devices.Addr().String())
+	}
+	return addrs
+}
+
+func connectToUnprovisioned(addr string) (ble.Client, *ble.Characteristic, *ble.Characteristic) {
 	// Find and Connect to Mesh Node
 	ctx := context.TODO()
-	cln, err := ble.Connect(ctx, provFilter)
+	cln, err := ble.Connect(
+		ctx,
+		func(a ble.Advertisement) bool {
+			if len(a.Services()) > 0 {
+				devAddr := a.Addr().String()
+				return addr == devAddr
+			}
+			return false
+		},
+	)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -169,7 +189,7 @@ func sendMsgWithRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgType
 		payload,
 	)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("err")
 	}
 	// Send msg
 	sendProxyPdu(cln, write, msg)

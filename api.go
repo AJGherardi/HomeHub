@@ -37,15 +37,9 @@ func registerQuery(schema *schemabuilder.Schema) {
 	obj.FieldFunc("listGroups", func() ([]Group, error) {
 		return getGroups(groupsCollection), nil
 	})
-	obj.FieldFunc("getProvData", func() (ProvData, error) {
-		netData := getNetData(netCollection)
-		return encodeProvData(
-			netData.NetKey,
-			netData.NetKeyIndex,
-			netData.Flags,
-			netData.IvIndex,
-			netData.NextAddr,
-		), nil
+	obj.FieldFunc("availableDevices", func() ([]string, error) {
+		nodes := findDevices()
+		return nodes, nil
 	})
 	obj.FieldFunc("getState", func(args struct {
 		DevAddr    string
@@ -61,13 +55,14 @@ func registerQuery(schema *schemabuilder.Schema) {
 func registerMutation(schema *schemabuilder.Schema) {
 	obj := schema.Mutation()
 	obj.FieldFunc("addDevice", func(args struct {
-		Name string
-		Addr string
+		Name    string
+		Addr    string
+		DevAddr string
 	}) (Device, error) {
 		// Get net data
 		netData := getNetData(netCollection)
 		// Connect to unprovisioned device
-		cln, write, read = connectToUnprovisioned()
+		cln, write, read = connectToUnprovisioned(args.DevAddr)
 		// Provision device
 		devKey := provisionDevice(
 			cln,
@@ -280,7 +275,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 			NetKeyIndex:     []byte{0x00, 0x00},
 			NextAppKeyIndex: []byte{0x01, 0x00},
 			Flags:           []byte{0x00},
-			IvIndex:         []byte{0x00, 0x00, 0x00, 0x11},
+			IvIndex:         []byte{0x00, 0x00, 0x00, 0x01},
 			NextAddr:        []byte{0x00, 0x01},
 			NextGroupAddr:   []byte{0xc0, 0x00},
 			HubSeq:          []byte{0x00, 0x00, 0x00},
