@@ -44,12 +44,3 @@ type NetData struct {
 	HubSeq          []byte
 	WebKeys         [][]byte
 }
-
-// ProvData holds all data needed to setup a device in base64
-type ProvData struct {
-	NetworkKey  string
-	KeyIndex    string
-	Flags       string
-	IvIndex     string
-	NextDevAddr string
-}
