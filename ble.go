@@ -79,6 +79,25 @@ func reconnectOnDisconnect(ch <-chan struct{}) {
 	}
 }
 
+func switchToProxy() (ble.Client, *ble.Characteristic, *ble.Characteristic) {
+	cln.Unsubscribe(read, false)
+	// Get Characteristics from Profile
+	p, _ := cln.DiscoverProfile(true)
+	write := p.FindCharacteristic(ble.NewCharacteristic(ble.UUID16(0x2add)))
+	read := p.FindCharacteristic(ble.NewCharacteristic(ble.UUID16(0x2ade)))
+	// Subscribe to mesh Out Characteristic
+	cln.Subscribe(read, false, onNotify)
+	// Set up receivers
+	devices := getDevices(devicesCollection)
+	for _, device := range devices {
+		for _, element := range device.Elements {
+			addReceiver(element.Addr)
+		}
+	}
+	fmt.Println("proxy con")
+	return cln, write, read
+}
+
 func connectToProxy() (ble.Client, *ble.Characteristic, *ble.Characteristic) {
 	// Find and Connect to Mesh Node
 	ctx := context.TODO()

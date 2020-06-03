@@ -10,6 +10,7 @@ import (
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
 	"github.com/AJGherardi/HomeHub/models"
+	"github.com/grandcat/zeroconf"
 	"github.com/samsarahq/thunder/graphql"
 	"github.com/samsarahq/thunder/graphql/schemabuilder"
 	"github.com/samsarahq/thunder/reactive"
@@ -73,10 +74,10 @@ func registerMutation(schema *schemabuilder.Schema) {
 			netData.IvIndex,
 			netData.NextAddr,
 		)
-		cln.CancelConnection()
+		// cln.CancelConnection()
 		// Connect to proxy node
-		cln, write, read = connectToProxy()
-		go reconnectOnDisconnect(cln.Disconnected())
+		cln, write, read = switchToProxy()
+		// go reconnectOnDisconnect(cln.Disconnected())
 		// Add device receiver
 		addReceiver(netData.NextAddr)
 		// Create device object
@@ -282,6 +283,26 @@ func registerMutation(schema *schemabuilder.Schema) {
 			WebKeys:         [][]byte{webKey},
 		})
 		return encodeBase64(webKey), nil
+	})
+	obj.FieldFunc("resetHub", func() (bool, error) {
+		// Check if configured
+		if getNetData(netCollection).ID == primitive.NilObjectID {
+			return false, errors.New("not configured")
+		}
+		// Clean house
+		groupsCollection.DeleteMany(context.TODO(), bson.D{})
+		devicesCollection.DeleteMany(context.TODO(), bson.D{})
+		webKeysCollection.DeleteMany(context.TODO(), bson.D{})
+		appKeysCollection.DeleteMany(context.TODO(), bson.D{})
+		devKeysCollection.DeleteMany(context.TODO(), bson.D{})
+		netCollection.DeleteMany(context.TODO(), bson.D{})
+		// Disconnect from proxy
+		cln, write, read = nil, nil, nil
+		// Reset receivers
+		messages = make(map[[2]byte](chan []byte))
+		// Mdns
+		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
+		return true, nil
 	})
 }
 
