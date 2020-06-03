@@ -325,30 +325,6 @@ func registerGroup(schema *schemabuilder.Schema) {
 	})
 }
 
-func registerProvData(schema *schemabuilder.Schema) {
-	obj := schema.Object("ProvData", ProvData{})
-	obj.FieldFunc("networkKey", func(ctx context.Context, p *ProvData) string {
-		reactive.InvalidateAfter(ctx, 5*time.Second)
-		return p.NetworkKey
-	})
-	obj.FieldFunc("keyIndex", func(ctx context.Context, p *ProvData) string {
-		reactive.InvalidateAfter(ctx, 5*time.Second)
-		return p.KeyIndex
-	})
-	obj.FieldFunc("flags", func(ctx context.Context, p *ProvData) string {
-		reactive.InvalidateAfter(ctx, 5*time.Second)
-		return p.Flags
-	})
-	obj.FieldFunc("ivIndex", func(ctx context.Context, p *ProvData) string {
-		reactive.InvalidateAfter(ctx, 5*time.Second)
-		return p.IvIndex
-	})
-	obj.FieldFunc("nextDevAddr", func(ctx context.Context, p *ProvData) string {
-		reactive.InvalidateAfter(ctx, 5*time.Second)
-		return p.NextDevAddr
-	})
-}
-
 // Schema builds the graphql schema.
 func schema() *graphql.Schema {
 	builder := schemabuilder.NewSchema()
@@ -356,7 +332,6 @@ func schema() *graphql.Schema {
 	registerMutation(builder)
 	registerDevice(builder)
 	registerGroup(builder)
-	registerProvData(builder)
 	return builder.MustBuild()
 }
 

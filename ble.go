@@ -24,7 +24,14 @@ func onNotify(req []byte) {
 	appKeys := getAppKeys(appKeysCollection)
 	// Check if it is a network pdu
 	if req[0] == 0x00 {
-		cmp, err := mesh.DecodePdu(msg, req[1:], netData.NetKey, netData.IvIndex, appKeys, devKeys)
+		cmp, err := mesh.DecodePdu(
+			msg,
+			req[1:],
+			netData.NetKey,
+			netData.IvIndex,
+			appKeys,
+			devKeys,
+		)
 		if err != nil {
 			fmt.Println(err)
 		}
