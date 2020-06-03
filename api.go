@@ -74,12 +74,10 @@ func registerMutation(schema *schemabuilder.Schema) {
 			netData.IvIndex,
 			netData.NextAddr,
 		)
-		// cln.CancelConnection()
-		// Connect to proxy node
-		cln, write, read = switchToProxy()
-		// go reconnectOnDisconnect(cln.Disconnected())
 		// Add device receiver
 		addReceiver(netData.NextAddr)
+		// Connect to proxy node
+		cln, write, read = switchToProxy()
 		// Create device object
 		var device Device
 		device.Name = args.Name
@@ -96,9 +94,9 @@ func registerMutation(schema *schemabuilder.Schema) {
 		addRsp := sendMsgWithRsp(device.Addr, devKey, addPayload, mesh.DevMsg)
 		fmt.Printf("add %x \n", addRsp)
 		// Send app key bind for config data
-		bindPayload := models.AppKeyBind(device.Addr, appKey.KeyIndex, []byte{0x13, 0x12})
-		bindRsp := sendMsgWithRsp(device.Addr, devKey, bindPayload, mesh.DevMsg)
-		fmt.Printf("bind %x \n", bindRsp)
+		// bindPayload := models.AppKeyBind(device.Addr, appKey.KeyIndex, []byte{0x13, 0x12})
+		// bindRsp := sendMsgWithRsp(device.Addr, devKey, bindPayload, mesh.DevMsg)
+		// fmt.Printf("bind %x \n", bindRsp)
 		// Get model id
 		if true {
 			devType := "2PowerSwitch"
