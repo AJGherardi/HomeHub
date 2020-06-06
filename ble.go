@@ -79,25 +79,6 @@ func reconnectOnDisconnect(ch <-chan struct{}) {
 	}
 }
 
-func switchToProxy() (ble.Client, *ble.Characteristic, *ble.Characteristic) {
-	cln.Unsubscribe(read, false)
-	// Get Characteristics from Profile
-	p, _ := cln.DiscoverProfile(true)
-	write := p.FindCharacteristic(ble.NewCharacteristic(ble.UUID16(0x2add)))
-	read := p.FindCharacteristic(ble.NewCharacteristic(ble.UUID16(0x2ade)))
-	// Subscribe to mesh Out Characteristic
-	cln.Subscribe(read, false, onNotify)
-	// Set up receivers
-	devices := getDevices(devicesCollection)
-	for _, device := range devices {
-		for _, element := range device.Elements {
-			addReceiver(element.Addr)
-		}
-	}
-	fmt.Println("proxy con")
-	return cln, write, read
-}
-
 func connectToProxy() (ble.Client, *ble.Characteristic, *ble.Characteristic) {
 	// Find and Connect to Mesh Node
 	ctx := context.TODO()
@@ -120,12 +101,11 @@ func connectToProxy() (ble.Client, *ble.Characteristic, *ble.Characteristic) {
 			addReceiver(element.Addr)
 		}
 	}
-	fmt.Println("test")
 	return cln, write, read
 }
 
 func findDevices() []string {
-	ctx := ble.WithSigHandler(context.WithTimeout(context.Background(), 10*time.Second))
+	ctx := ble.WithSigHandler(context.WithTimeout(context.Background(), 5*time.Second))
 	adv, _ := ble.Find(ctx, false, provFilter)
 	var addrs []string
 	for _, devices := range adv {
@@ -158,14 +138,16 @@ func connectToUnprovisioned(addr string) (ble.Client, *ble.Characteristic, *ble.
 	read := p.FindCharacteristic(ble.NewCharacteristic(ble.UUID16(0x2adc)))
 	// Subscribe to mesh Out Characteristic
 	cln.Subscribe(read, false, onNotify)
-	fmt.Println("con")
 	return cln, write, read
 }
 
 func sendProxyPdu(cln ble.Client, write *ble.Characteristic, msg [][]byte) {
 	for _, pdu := range msg {
 		proxyPdu := append([]byte{0x00}, pdu...)
-		cln.WriteCharacteristic(write, proxyPdu, false)
+		err := cln.WriteCharacteristic(write, proxyPdu, false)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 	}
 }
 
@@ -215,7 +197,7 @@ func sendMsgWithRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgType
 		payload,
 	)
 	if err != nil {
-		fmt.Println("err")
+		fmt.Println(err.Error())
 	}
 	// Send msg
 	sendProxyPdu(cln, write, msg)

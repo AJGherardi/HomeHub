@@ -74,10 +74,13 @@ func registerMutation(schema *schemabuilder.Schema) {
 			netData.IvIndex,
 			netData.NextAddr,
 		)
+		cln.CancelConnection()
+		cln, write, read = nil, nil, nil
+		time.Sleep(1 * time.Second)
 		// Add device receiver
 		addReceiver(netData.NextAddr)
 		// Connect to proxy node
-		cln, write, read = switchToProxy()
+		cln, write, read = connectToProxy()
 		// Create device object
 		var device Device
 		device.Name = args.Name
