@@ -151,6 +151,15 @@ func sendProxyPdu(cln ble.Client, write *ble.Characteristic, msg [][]byte) {
 	}
 }
 
+func sendUnackProxyPdu(cln ble.Client, write *ble.Characteristic, msg [][]byte) {
+	for _, pdu := range msg {
+		proxyPdu := append([]byte{0x00}, pdu...)
+		err := cln.WriteCharacteristic(write, proxyPdu, true)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+	}
+}
 func sendProvPdu(cln ble.Client, write *ble.Characteristic, pdu []byte) {
 	proxyPdu := append([]byte{0x03}, pdu...)
 	cln.WriteCharacteristic(write, proxyPdu, false)
@@ -175,7 +184,7 @@ func sendMsgWithoutRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgT
 		fmt.Println(err)
 	}
 	// Send msg
-	sendProxyPdu(cln, write, msg)
+	sendUnackProxyPdu(cln, write, msg)
 	// Update seq
 	netData.HubSeq = seq
 	updateNetData(netCollection, netData)

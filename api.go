@@ -144,11 +144,11 @@ func registerMutation(schema *schemabuilder.Schema) {
 		devAddr := decodeBase64(args.Addr)
 		device := getDeviceByAddr(devicesCollection, devAddr)
 		devKey := getDevKeyByAddr(devKeysCollection, devAddr)
-		// Remove device from database
-		deleteDevice(devicesCollection, devAddr)
 		// Send reset paylode
 		resetPaylode := models.NodeReset()
 		sendMsgWithoutRsp(devAddr, devKey.Key, resetPaylode, mesh.DevMsg)
+		// Remove device from database
+		deleteDevice(devicesCollection, devAddr)
 		// Remove devkey
 		deleteDevKey(devKeysCollection, devAddr)
 		// Reset the receivers
