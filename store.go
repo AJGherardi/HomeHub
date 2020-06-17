@@ -128,6 +128,27 @@ func getDevices(collection *mongo.Collection) []Device {
 	return devices
 }
 
+func getDeviceByElemAddr(collection *mongo.Collection, elemAddr []byte) Device {
+	var devices []Device
+	// Get all Devices
+	cur, _ := collection.Find(context.TODO(), bson.D{})
+	// Deserialize into array of devices
+	for cur.Next(context.TODO()) {
+		var result Device
+		cur.Decode(&result)
+		// Add to array
+		devices = append(devices, result)
+	}
+	for _, device := range devices {
+		for _, element := range device.Elements {
+			if reflect.DeepEqual(element.Addr, elemAddr) {
+				return device
+			}
+		}
+	}
+	return Device{}
+}
+
 func getDeviceByAddr(collection *mongo.Collection, addr []byte) Device {
 	var device Device
 	result := collection.FindOne(context.TODO(), bson.M{"addr": addr})

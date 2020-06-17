@@ -4,12 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"reflect"
 	"time"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
-	"github.com/AJGherardi/HomeHub/models"
 	"github.com/grandcat/zeroconf"
 	"github.com/samsarahq/thunder/graphql"
 	"github.com/samsarahq/thunder/graphql/schemabuilder"
@@ -77,8 +75,6 @@ func registerMutation(schema *schemabuilder.Schema) {
 		cln.CancelConnection()
 		cln, write, read = nil, nil, nil
 		time.Sleep(1 * time.Second)
-		// Add device receiver
-		addReceiver(netData.NextAddr)
 		// Connect to proxy node
 		cln, write, read = connectToProxy()
 		// Create device object
@@ -93,25 +89,21 @@ func registerMutation(schema *schemabuilder.Schema) {
 		// Insert the dev key
 		insertDevKey(devKeysCollection, mesh.DevKey{Addr: device.Addr, Key: devKey})
 		// Send app key add
-		addPayload := models.AppKeyAdd(netData.NetKeyIndex, appKey.KeyIndex, appKey.Key)
-		addRsp := sendMsgWithRsp(device.Addr, devKey, addPayload, mesh.DevMsg)
-		fmt.Printf("add %x \n", addRsp)
+		addPayload := appKeyAdd(netData.NetKeyIndex, appKey.KeyIndex, appKey.Key)
+		sendMsg(device.Addr, devKey, addPayload, mesh.DevMsg)
 		// Send app key bind for config data
 		// bindPayload := models.AppKeyBind(device.Addr, appKey.KeyIndex, []byte{0x13, 0x12})
-		// bindRsp := sendMsgWithRsp(device.Addr, devKey, bindPayload, mesh.DevMsg)
-		// fmt.Printf("bind %x \n", bindRsp)
+		// sendMsg(device.Addr, devKey, bindPayload, mesh.DevMsg)
 		// Get model id
 		if true {
 			devType := "2PowerSwitch"
 			elemAddr1 := device.Addr
 			elemAddr2 := incrementAddr(elemAddr1)
 			// Send app key bind for onoff
-			bindPayload1 := models.AppKeyBind(elemAddr1, appKey.KeyIndex, []byte{0x10, 0x00})
-			bindRsp1 := sendMsgWithRsp(device.Addr, devKey, bindPayload1, mesh.DevMsg)
-			fmt.Printf("bind %x \n", bindRsp1)
-			bindPayload2 := models.AppKeyBind(elemAddr2, appKey.KeyIndex, []byte{0x10, 0x00})
-			bindRsp2 := sendMsgWithRsp(device.Addr, devKey, bindPayload2, mesh.DevMsg)
-			fmt.Printf("bind %x \n", bindRsp2)
+			bindPayload1 := appKeyBind(elemAddr1, appKey.KeyIndex, []byte{0x10, 0x00})
+			sendMsg(device.Addr, devKey, bindPayload1, mesh.DevMsg)
+			bindPayload2 := appKeyBind(elemAddr2, appKey.KeyIndex, []byte{0x10, 0x00})
+			sendMsg(device.Addr, devKey, bindPayload2, mesh.DevMsg)
 			// Set type and elements
 			device.Type = devType
 			device.Elements = []Element{
@@ -124,9 +116,6 @@ func registerMutation(schema *schemabuilder.Schema) {
 					State:     []byte{0x00},
 				}},
 			}
-			// Add element receivers
-			addReceiver(elemAddr1)
-			addReceiver(elemAddr2)
 		}
 		// Save Device
 		insertDevice(devicesCollection, device)
@@ -145,19 +134,12 @@ func registerMutation(schema *schemabuilder.Schema) {
 		device := getDeviceByAddr(devicesCollection, devAddr)
 		devKey := getDevKeyByAddr(devKeysCollection, devAddr)
 		// Send reset paylode
-		resetPaylode := models.NodeReset()
-		sendMsgWithoutRsp(devAddr, devKey.Key, resetPaylode, mesh.DevMsg)
+		resetPaylode := nodeReset()
+		sendMsg(devAddr, devKey.Key, resetPaylode, mesh.DevMsg)
 		// Remove device from database
 		deleteDevice(devicesCollection, devAddr)
 		// Remove devkey
 		deleteDevKey(devKeysCollection, devAddr)
-		// Reset the receivers
-		devices := getDevices(devicesCollection)
-		for _, device := range devices {
-			for _, element := range device.Elements {
-				addReceiver(element.Addr)
-			}
-		}
 		// Remove devAddr from group
 		group := getGroupByDevAddr(groupsCollection, devAddr)
 		for i, addr := range group.DevAddrs {
@@ -179,17 +161,10 @@ func registerMutation(schema *schemabuilder.Schema) {
 			// Remove device from database
 			deleteDevice(devicesCollection, devAddr)
 			// Send reset paylode
-			resetPaylode := models.NodeReset()
-			sendMsgWithoutRsp(devAddr, devKey.Key, resetPaylode, mesh.DevMsg)
+			resetPaylode := nodeReset()
+			sendMsg(devAddr, devKey.Key, resetPaylode, mesh.DevMsg)
 			// Remove devkey
 			deleteDevKey(devKeysCollection, devAddr)
-		}
-		// Reset the receivers
-		devices := getDevices(devicesCollection)
-		for _, device := range devices {
-			for _, element := range device.Elements {
-				addReceiver(element.Addr)
-			}
 		}
 		// Remove the group and app key
 		deleteGroup(groupsCollection, groupAddr)
@@ -218,7 +193,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		insertGroup(groupsCollection, group)
 		// Update net data
 		netData.NextGroupAddr = incrementAddr(netData.NextGroupAddr)
-		netData.NextAppKeyIndex = models.IncrementKeyIndex(netData.NextAppKeyIndex)
+		netData.NextAppKeyIndex = incrementKeyIndex(netData.NextAppKeyIndex)
 		updateNetData(netCollection, netData)
 		return group, nil
 	})
@@ -238,14 +213,13 @@ func registerMutation(schema *schemabuilder.Schema) {
 		// Send State
 		if device.Elements[args.ElemNumber].State.StateType == "onoff" {
 			// Send msg
-			onoffPayload := models.OnOffSet(value[0])
-			onoffRsp := sendMsgWithRsp(
+			onoffPayload := onOffSet(value[0])
+			sendMsg(
 				device.Elements[args.ElemNumber].Addr,
 				appKey.Key,
 				onoffPayload,
 				mesh.AppMsg,
 			)
-			fmt.Printf("state %x \n", onoffRsp)
 		}
 		updateDevice(devicesCollection, device)
 		return device.Elements[args.ElemNumber].State, nil
@@ -299,8 +273,6 @@ func registerMutation(schema *schemabuilder.Schema) {
 		netCollection.DeleteMany(context.TODO(), bson.D{})
 		// Disconnect from proxy
 		cln, write, read = nil, nil, nil
-		// Reset receivers
-		messages = make(map[[2]byte](chan []byte))
 		// Mdns
 		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 		return true, nil

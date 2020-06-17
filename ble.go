@@ -12,7 +12,6 @@ import (
 var (
 	src          = []byte{0x12, 0x34}
 	ttl          = byte(0x04)
-	messages     = make(map[[2]byte](chan []byte))
 	provMessages = make(chan []byte)
 	msg          = new(mesh.Msg)
 	d            ble.Device
@@ -33,18 +32,29 @@ func onNotify(req []byte) {
 			devKeys,
 		)
 		if err != nil {
+			// New msg if err
+			msg = new(mesh.Msg)
 			fmt.Println(err)
 		}
+		// Check if compleat
 		if cmp {
-			var msgSrc [2]byte
-			copy(msgSrc[:], msg.Src)
-			messages[msgSrc] <- msg.Payload
-			msg = new(mesh.Msg)
+			fmt.Printf("reset %x \n", msg.Payload)
+			// Sort messages
+			switch msg.Payload[0] {
+			// Non config models
+			case 0x82:
+				switch msg.Payload[1] {
+				// Onoff Status
+				case 0x04:
+					onOffStatus(*msg)
+				}
+				msg = new(mesh.Msg)
+			}
 		}
-	}
-	// Check if it is a prov pdu
-	if req[0] == 0x03 {
-		provMessages <- req[2:]
+		// Check if it is a prov pdu
+		if req[0] == 0x03 {
+			provMessages <- req[2:]
+		}
 	}
 }
 
@@ -65,18 +75,17 @@ func provFilter(a ble.Advertisement) bool {
 }
 
 func reconnectOnDisconnect(ch <-chan struct{}) {
-	// Check if open
-	_, open := <-ch
+	// Wait for close
+	<-ch
 	// Dont reconect if there are no devices
 	if len(getDevices(devicesCollection)) == 0 {
-		cln, write = nil, nil
+		cln, write, read = nil, nil, nil
 		return
 	}
-	if !open {
-		messages = make(map[[2]byte](chan []byte))
-		cln, write, read = connectToProxy()
-		go reconnectOnDisconnect(cln.Disconnected())
-	}
+	// Reconnect to proxy
+	cln, write, read = connectToProxy()
+	// Rerun reconnectOnDisconnect
+	go reconnectOnDisconnect(cln.Disconnected())
 }
 
 func connectToProxy() (ble.Client, *ble.Characteristic, *ble.Characteristic) {
@@ -84,7 +93,7 @@ func connectToProxy() (ble.Client, *ble.Characteristic, *ble.Characteristic) {
 	ctx := context.TODO()
 	cln, err := ble.Connect(ctx, proxyFilter)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Connect err " + err.Error())
 	}
 	// Set Mtu
 	cln.ExchangeMTU(128)
@@ -94,13 +103,6 @@ func connectToProxy() (ble.Client, *ble.Characteristic, *ble.Characteristic) {
 	read := p.FindCharacteristic(ble.NewCharacteristic(ble.UUID16(0x2ade)))
 	// Subscribe to mesh Out Characteristic
 	cln.Subscribe(read, false, onNotify)
-	// Set up receivers
-	devices := getDevices(devicesCollection)
-	for _, device := range devices {
-		for _, element := range device.Elements {
-			addReceiver(element.Addr)
-		}
-	}
 	return cln, write, read
 }
 
@@ -128,7 +130,7 @@ func connectToUnprovisioned(addr string) (ble.Client, *ble.Characteristic, *ble.
 		},
 	)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("Connect err " + err.Error())
 	}
 	// Set Mtu
 	cln.ExchangeMTU(128)
@@ -144,54 +146,20 @@ func connectToUnprovisioned(addr string) (ble.Client, *ble.Characteristic, *ble.
 func sendProxyPdu(cln ble.Client, write *ble.Characteristic, msg [][]byte) {
 	for _, pdu := range msg {
 		proxyPdu := append([]byte{0x00}, pdu...)
-		err := cln.WriteCharacteristic(write, proxyPdu, false)
-		if err != nil {
-			fmt.Println(err.Error())
-		}
-	}
-}
-
-func sendUnackProxyPdu(cln ble.Client, write *ble.Characteristic, msg [][]byte) {
-	for _, pdu := range msg {
-		proxyPdu := append([]byte{0x00}, pdu...)
 		err := cln.WriteCharacteristic(write, proxyPdu, true)
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Println("Send err " + err.Error())
 		}
 	}
 }
+
 func sendProvPdu(cln ble.Client, write *ble.Characteristic, pdu []byte) {
 	proxyPdu := append([]byte{0x03}, pdu...)
-	cln.WriteCharacteristic(write, proxyPdu, false)
-}
-
-// Sends a mesh message without a response
-func sendMsgWithoutRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgType) {
-	netData := getNetData(netCollection)
-	// Encode msg and get new seq
-	msg, seq, err := mesh.EncodeAccessMsg(
-		msgType,
-		netData.HubSeq,
-		src,
-		dst,
-		ttl,
-		netData.IvIndex,
-		key,
-		netData.NetKey,
-		payload,
-	)
-	if err != nil {
-		fmt.Println(err)
-	}
-	// Send msg
-	sendUnackProxyPdu(cln, write, msg)
-	// Update seq
-	netData.HubSeq = seq
-	updateNetData(netCollection, netData)
+	cln.WriteCharacteristic(write, proxyPdu, true)
 }
 
 // Sends a mesh message and returns a response
-func sendMsgWithRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgType) []byte {
+func sendMsg(dst []byte, key []byte, payload []byte, msgType mesh.MsgType) {
 	netData := getNetData(netCollection)
 	// Encode msg and get new seq
 	msg, seq, err := mesh.EncodeAccessMsg(
@@ -206,25 +174,13 @@ func sendMsgWithRsp(dst []byte, key []byte, payload []byte, msgType mesh.MsgType
 		payload,
 	)
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println("Encode err " + err.Error())
 	}
 	// Send msg
 	sendProxyPdu(cln, write, msg)
 	// Update seq
 	netData.HubSeq = seq
 	updateNetData(netCollection, netData)
-	// Get Rsp from addr
-	var msgDst [2]byte
-	copy(msgDst[:], dst)
-	res := <-messages[msgDst]
-	return res
-}
-
-// Adds a receiver for one address
-func addReceiver(addr []byte) {
-	var recAddr [2]byte
-	copy(recAddr[:], addr)
-	messages[recAddr] = make(chan []byte)
 }
 
 func provisionDevice(cln ble.Client, write *ble.Characteristic, netKey, keyIndex, flags, ivIndex, devAddr []byte) []byte {
