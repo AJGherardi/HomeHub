@@ -77,6 +77,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		time.Sleep(1 * time.Second)
 		// Connect to proxy node
 		cln, write, read = connectToProxy()
+		go reconnectOnDisconnect(cln.Disconnected())
 		// Create device object
 		var device Device
 		device.Name = args.Name

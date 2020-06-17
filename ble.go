@@ -38,7 +38,6 @@ func onNotify(req []byte) {
 		}
 		// Check if compleat
 		if cmp {
-			fmt.Printf("reset %x \n", msg.Payload)
 			// Sort messages
 			switch msg.Payload[0] {
 			// Non config models
@@ -51,10 +50,10 @@ func onNotify(req []byte) {
 				msg = new(mesh.Msg)
 			}
 		}
-		// Check if it is a prov pdu
-		if req[0] == 0x03 {
-			provMessages <- req[2:]
-		}
+	}
+	// Check if it is a prov pdu
+	if req[0] == 0x03 {
+		provMessages <- req[2:]
 	}
 }
 
@@ -155,7 +154,10 @@ func sendProxyPdu(cln ble.Client, write *ble.Characteristic, msg [][]byte) {
 
 func sendProvPdu(cln ble.Client, write *ble.Characteristic, pdu []byte) {
 	proxyPdu := append([]byte{0x03}, pdu...)
-	cln.WriteCharacteristic(write, proxyPdu, true)
+	err := cln.WriteCharacteristic(write, proxyPdu, true)
+	if err != nil {
+		fmt.Println("Send prov err " + err.Error())
+	}
 }
 
 // Sends a mesh message and returns a response
