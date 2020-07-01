@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"reflect"
 
 	mesh "github.com/AJGherardi/GoMeshCryptro"
 )
@@ -26,11 +25,5 @@ func onOffStatus(msg mesh.Msg) {
 	state := msg.Payload[2]
 	fmt.Printf("status %x \n", msg.Payload)
 	// Update the state
-	for i, element := range device.Elements {
-		if reflect.DeepEqual(element.Addr, msg.Src) {
-			device.Elements[i].State.State = []byte{state}
-		}
-	}
-	// Save the device
-	updateDevice(devicesCollection, device)
+	device.updateStateUsingAddr(msg.Src, []byte{state})
 }

@@ -16,7 +16,6 @@ import (
 var (
 	groupsCollection  *mongo.Collection
 	devicesCollection *mongo.Collection
-	webKeysCollection *mongo.Collection
 	appKeysCollection *mongo.Collection
 	devKeysCollection *mongo.Collection
 	netCollection     *mongo.Collection
@@ -30,7 +29,6 @@ func main() {
 	// Get ref to collections
 	groupsCollection = getCollection("groups")
 	devicesCollection = getCollection("devices")
-	webKeysCollection = getCollection("webKeys")
 	appKeysCollection = getCollection("appKeys")
 	devKeysCollection = getCollection("devKeys")
 	netCollection = getCollection("net")
