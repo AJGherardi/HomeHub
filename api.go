@@ -66,16 +66,17 @@ func registerMutation(schema *schemabuilder.Schema) {
 		cln, write, read = connectToProxy()
 		go reconnectOnDisconnect(cln.Disconnected())
 		// Create device object
-		device := makeDevice(args.Name, "2PowerSwitch", netData.NextAddr)
+		device := makeDevice(
+			args.Name,
+			"2PowerSwitch",
+			netData.NextAddr,
+			mesh.DevKey{Addr: netData.NextAddr, Key: devKey},
+		)
 		// Get group
 		groupAddr := decodeBase64(args.Addr)
 		group := getGroupByAddr(groupsCollection, groupAddr)
-		// Get app key
-		appKey := getAppKeyByAid(appKeysCollection, group.Aid)
-		// Insert the dev key
-		insertDevKey(devKeysCollection, mesh.DevKey{Addr: device.Addr, Key: devKey})
 		// Send app key add
-		addPayload := appKeyAdd(netData.NetKeyIndex, appKey.KeyIndex, appKey.Key)
+		addPayload := appKeyAdd(netData.NetKeyIndex, group.AppKey.KeyIndex, group.AppKey.Key)
 		sendMsg(device.Addr, devKey, addPayload, mesh.DevMsg)
 		// Get model id
 		if true {
@@ -83,9 +84,9 @@ func registerMutation(schema *schemabuilder.Schema) {
 			elemAddr1 := device.addElem("onoff")
 			elemAddr2 := device.addElem("onoff")
 			// Send app key bind for onoff
-			bindPayload1 := appKeyBind(elemAddr1, appKey.KeyIndex, []byte{0x10, 0x00})
+			bindPayload1 := appKeyBind(elemAddr1, group.AppKey.KeyIndex, []byte{0x10, 0x00})
 			sendMsg(device.Addr, devKey, bindPayload1, mesh.DevMsg)
-			bindPayload2 := appKeyBind(elemAddr2, appKey.KeyIndex, []byte{0x10, 0x00})
+			bindPayload2 := appKeyBind(elemAddr2, group.AppKey.KeyIndex, []byte{0x10, 0x00})
 			sendMsg(device.Addr, devKey, bindPayload2, mesh.DevMsg)
 		}
 		// Add device to group
@@ -100,14 +101,11 @@ func registerMutation(schema *schemabuilder.Schema) {
 		// Get devKey
 		devAddr := decodeBase64(args.Addr)
 		device := getDeviceByAddr(devicesCollection, devAddr)
-		devKey := getDevKeyByAddr(devKeysCollection, devAddr)
 		// Send reset paylode
 		resetPaylode := nodeReset()
-		sendMsg(devAddr, devKey.Key, resetPaylode, mesh.DevMsg)
+		sendMsg(devAddr, device.DevKey.Key, resetPaylode, mesh.DevMsg)
 		// Remove device from database
 		deleteDevice(devicesCollection, devAddr)
-		// Remove devkey
-		deleteDevKey(devKeysCollection, devAddr)
 		// Remove devAddr from group
 		group := getGroupByDevAddr(groupsCollection, devAddr)
 		group.removeDevice(device.Addr)
@@ -119,19 +117,15 @@ func registerMutation(schema *schemabuilder.Schema) {
 		group := getGroupByAddr(groupsCollection, groupAddr)
 		// Delete devices
 		for _, devAddr := range group.getDevAddrs() {
-			// Get devKey
-			devKey := getDevKeyByAddr(devKeysCollection, devAddr)
-			// Remove device from database
-			deleteDevice(devicesCollection, devAddr)
+			device := getDeviceByAddr(devicesCollection, devAddr)
 			// Send reset paylode
 			resetPaylode := nodeReset()
-			sendMsg(devAddr, devKey.Key, resetPaylode, mesh.DevMsg)
-			// Remove devkey
-			deleteDevKey(devKeysCollection, devAddr)
+			sendMsg(devAddr, device.DevKey.Key, resetPaylode, mesh.DevMsg)
+			// Remove device from database
+			deleteDevice(devicesCollection, devAddr)
 		}
-		// Remove the group and app key
+		// Remove the group
 		deleteGroup(groupsCollection, groupAddr)
-		deleteAppKey(appKeysCollection, group.Aid)
 		return group, nil
 	})
 	obj.FieldFunc("addGroup", func(args struct {
@@ -142,14 +136,12 @@ func registerMutation(schema *schemabuilder.Schema) {
 		appKey := make([]byte, 16)
 		rand.Read(appKey)
 		aid, _ := mesh.GetAid(appKey)
-		// Add groups app key
-		insertAppKey(appKeysCollection, mesh.AppKey{
+		// Add a group
+		group := makeGroup(args.Name, netData.NextGroupAddr, mesh.AppKey{
 			Aid:      []byte{aid},
 			Key:      appKey,
 			KeyIndex: netData.NetKeyIndex,
 		})
-		// Add a group
-		group := makeGroup(args.Name, netData.NextGroupAddr, []byte{aid})
 		// Update net data
 		netData.NextGroupAddr = incrementAddr(netData.NextGroupAddr)
 		netData.NextAppKeyIndex = incrementKeyIndex(netData.NextAppKeyIndex)
@@ -169,14 +161,13 @@ func registerMutation(schema *schemabuilder.Schema) {
 		device.updateState(elemNumber, value)
 		// Get appkey from group
 		group := getGroupByDevAddr(groupsCollection, device.Addr)
-		appKey := getAppKeyByAid(appKeysCollection, group.Aid)
 		// Send State
 		if device.getState(elemNumber).StateType == "onoff" {
 			// Send msg
 			onoffPayload := onOffSet(value[0])
 			sendMsg(
 				device.getElemAddr(elemNumber),
-				appKey.Key,
+				group.AppKey.Key,
 				onoffPayload,
 				mesh.AppMsg,
 			)
@@ -199,8 +190,6 @@ func registerMutation(schema *schemabuilder.Schema) {
 		// Clean house
 		groupsCollection.DeleteMany(context.TODO(), bson.D{})
 		devicesCollection.DeleteMany(context.TODO(), bson.D{})
-		appKeysCollection.DeleteMany(context.TODO(), bson.D{})
-		devKeysCollection.DeleteMany(context.TODO(), bson.D{})
 		netCollection.DeleteMany(context.TODO(), bson.D{})
 		// Add and get net data
 		insertNetData(netCollection, NetData{
@@ -225,8 +214,6 @@ func registerMutation(schema *schemabuilder.Schema) {
 		// Clean house
 		groupsCollection.DeleteMany(context.TODO(), bson.D{})
 		devicesCollection.DeleteMany(context.TODO(), bson.D{})
-		appKeysCollection.DeleteMany(context.TODO(), bson.D{})
-		devKeysCollection.DeleteMany(context.TODO(), bson.D{})
 		netCollection.DeleteMany(context.TODO(), bson.D{})
 		// Disconnect from proxy
 		cln, write, read = nil, nil, nil

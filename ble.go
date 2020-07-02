@@ -10,17 +10,14 @@ import (
 )
 
 var (
-	src          = []byte{0x12, 0x34}
-	ttl          = byte(0x04)
-	provMessages = make(chan []byte)
-	msg          = new(mesh.Msg)
-	d            ble.Device
+	src = []byte{0x12, 0x34}
+	ttl = byte(0x04)
 )
 
 func onNotify(req []byte) {
 	netData := getNetData(netCollection)
-	devKeys := getDevKeys(devKeysCollection)
-	appKeys := getAppKeys(appKeysCollection)
+	devKeys := getDevKeys(devicesCollection)
+	appKeys := getAppKeys(groupsCollection)
 	// Check if it is a network pdu
 	if req[0] == 0x00 {
 		cmp, err := mesh.DecodePdu(

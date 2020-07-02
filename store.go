@@ -100,7 +100,7 @@ func updateGroup(collection *mongo.Collection, group Group) {
 		context.TODO(),
 		bson.M{"addr": group.Addr},
 		bson.M{"$set": bson.M{
-			"aid":      group.Aid,
+			"appKey":   group.AppKey,
 			"name":     group.Name,
 			"devaddrs": group.DevAddrs,
 		}},
@@ -170,75 +170,12 @@ func updateDevice(collection *mongo.Collection, data Device) {
 			"type":     data.Type,
 			"seq":      data.Seq,
 			"elements": data.Elements,
+			"devKey":   data.DevKey,
 		}},
 	)
 }
 
 func deleteDevice(collection *mongo.Collection, addr []byte) {
-	collection.DeleteOne(
-		context.TODO(),
-		bson.M{"addr": addr},
-	)
-}
-
-func getAppKeys(collection *mongo.Collection) []mesh.AppKey {
-	var keys []mesh.AppKey
-	// Get all keys
-	cur, _ := collection.Find(context.TODO(), bson.D{})
-	// Deserialize into array of app keys
-	for cur.Next(context.TODO()) {
-		var result mesh.AppKey
-		cur.Decode(&result)
-		// Add to array
-		keys = append(keys, result)
-	}
-	return keys
-}
-
-func getAppKeyByAid(collection *mongo.Collection, aid []byte) mesh.AppKey {
-	var key mesh.AppKey
-	result := collection.FindOne(context.TODO(), bson.M{"aid": aid})
-	result.Decode(&key)
-	return key
-}
-
-func insertAppKey(collection *mongo.Collection, key mesh.AppKey) {
-	collection.InsertOne(context.TODO(), key)
-}
-
-func deleteAppKey(collection *mongo.Collection, aid []byte) {
-	collection.DeleteOne(
-		context.TODO(),
-		bson.M{"aid": aid},
-	)
-}
-
-func getDevKeys(collection *mongo.Collection) []mesh.DevKey {
-	var keys []mesh.DevKey
-	// Get all keys
-	cur, _ := collection.Find(context.TODO(), bson.D{})
-	// Deserialize into array of dev keys
-	for cur.Next(context.TODO()) {
-		var result mesh.DevKey
-		cur.Decode(&result)
-		// Add to array
-		keys = append(keys, result)
-	}
-	return keys
-}
-
-func getDevKeyByAddr(collection *mongo.Collection, addr []byte) mesh.DevKey {
-	var key mesh.DevKey
-	result := collection.FindOne(context.TODO(), bson.M{"addr": addr})
-	result.Decode(&key)
-	return key
-}
-
-func insertDevKey(collection *mongo.Collection, key mesh.DevKey) {
-	collection.InsertOne(context.TODO(), key)
-}
-
-func deleteDevKey(collection *mongo.Collection, addr []byte) {
 	collection.DeleteOne(
 		context.TODO(),
 		bson.M{"addr": addr},
@@ -255,6 +192,20 @@ func checkWebKey(data NetData, webKey []byte) bool {
 	return false
 }
 
-func removeDevAddr(slice [][]byte, i int) [][]byte {
-	return append(slice[:i], slice[i+1:]...)
+func getDevKeys(collection *mongo.Collection) []mesh.DevKey {
+	devices := getDevices(collection)
+	var devKeys []mesh.DevKey
+	for _, device := range devices {
+		devKeys = append(devKeys, device.DevKey)
+	}
+	return devKeys
+}
+
+func getAppKeys(collection *mongo.Collection) []mesh.AppKey {
+	groups := getGroups(collection)
+	var appKeys []mesh.AppKey
+	for _, group := range groups {
+		appKeys = append(appKeys, group.AppKey)
+	}
+	return appKeys
 }

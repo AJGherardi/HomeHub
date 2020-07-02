@@ -3,14 +3,15 @@ package main
 import (
 	"reflect"
 
+	mesh "github.com/AJGherardi/GoMeshCryptro"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func makeGroup(name string, aid, addr []byte) Group {
+func makeGroup(name string, addr []byte, appKey mesh.AppKey) Group {
 	group := Group{
-		Name: name,
-		Aid:  aid,
-		Addr: addr,
+		Name:   name,
+		Addr:   addr,
+		AppKey: appKey,
 	}
 	insertGroup(groupsCollection, group)
 	return group
@@ -19,7 +20,7 @@ func makeGroup(name string, aid, addr []byte) Group {
 // Group holds a collection of devices and its app key id
 type Group struct {
 	Name     string
-	Aid      []byte
+	AppKey   mesh.AppKey
 	Addr     []byte
 	DevAddrs [][]byte
 }
@@ -42,11 +43,16 @@ func (g *Group) getDevAddrs() [][]byte {
 	return g.DevAddrs
 }
 
-func makeDevice(name, deviceType string, addr []byte) Device {
+func (g *Group) getAppKey() mesh.AppKey {
+	return g.AppKey
+}
+
+func makeDevice(name, deviceType string, addr []byte, devKey mesh.DevKey) Device {
 	device := Device{
-		Name: name,
-		Type: deviceType,
-		Addr: addr,
+		Name:   name,
+		Type:   deviceType,
+		Addr:   addr,
+		DevKey: devKey,
 	}
 	insertDevice(devicesCollection, device)
 	return device
@@ -58,6 +64,7 @@ type Device struct {
 	Type     string
 	Addr     []byte
 	Seq      []byte
+	DevKey   mesh.DevKey
 	Elements []Element
 }
 
@@ -114,6 +121,9 @@ func (d *Device) getState(index int) State {
 
 func (d *Device) getElemAddr(index int) []byte {
 	return d.Elements[index].Addr
+}
+func (d *Device) getDevKey(index int) mesh.DevKey {
+	return d.DevKey
 }
 
 // Element holds an elements addr and its state

@@ -48,3 +48,7 @@ func encodeKeyIndices(netIndex []byte, appIndex []byte) []byte {
 	binary.LittleEndian.PutUint32(output, indices)
 	return output[:3]
 }
+
+func removeDevAddr(slice [][]byte, i int) [][]byte {
+	return append(slice[:i], slice[i+1:]...)
+}

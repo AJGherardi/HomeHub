@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	mesh "github.com/AJGherardi/GoMeshCryptro"
 	"github.com/go-ble/ble"
 	"github.com/go-ble/ble/examples/lib/dev"
 	"github.com/grandcat/zeroconf"
@@ -16,12 +17,13 @@ import (
 var (
 	groupsCollection  *mongo.Collection
 	devicesCollection *mongo.Collection
-	appKeysCollection *mongo.Collection
-	devKeysCollection *mongo.Collection
 	netCollection     *mongo.Collection
 	write             *ble.Characteristic
 	read              *ble.Characteristic
 	cln               ble.Client
+	provMessages      = make(chan []byte)
+	msg               = new(mesh.Msg)
+	d                 ble.Device
 	mdns              *zeroconf.Server
 )
 
@@ -29,8 +31,6 @@ func main() {
 	// Get ref to collections
 	groupsCollection = getCollection("groups")
 	devicesCollection = getCollection("devices")
-	appKeysCollection = getCollection("appKeys")
-	devKeysCollection = getCollection("devKeys")
 	netCollection = getCollection("net")
 	// Get ble device
 	d, err := dev.NewDevice("default")
