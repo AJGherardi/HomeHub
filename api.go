@@ -53,11 +53,11 @@ func registerMutation(schema *schemabuilder.Schema) {
 		devKey := provisionDevice(
 			cln,
 			write,
-			netData.NetKey,
-			netData.NetKeyIndex,
-			netData.Flags,
-			netData.IvIndex,
-			netData.NextAddr,
+			netData.getNetKey(),
+			netData.getNetKeyIndex(),
+			netData.getFlags(),
+			netData.getIvIndex(),
+			netData.getNextAddr(),
 		)
 		cln.CancelConnection()
 		cln, write, read = nil, nil, nil
@@ -69,14 +69,18 @@ func registerMutation(schema *schemabuilder.Schema) {
 		device := makeDevice(
 			args.Name,
 			"2PowerSwitch",
-			netData.NextAddr,
-			mesh.DevKey{Addr: netData.NextAddr, Key: devKey},
+			netData.getNextAddr(),
+			mesh.DevKey{Addr: netData.getNextAddr(), Key: devKey},
 		)
 		// Get group
 		groupAddr := decodeBase64(args.Addr)
 		group := getGroupByAddr(groupsCollection, groupAddr)
 		// Send app key add
-		addPayload := appKeyAdd(netData.NetKeyIndex, group.AppKey.KeyIndex, group.AppKey.Key)
+		addPayload := appKeyAdd(
+			netData.getNetKeyIndex(),
+			group.getAppKey().KeyIndex,
+			group.getAppKey().Key,
+		)
 		sendMsg(device.Addr, devKey, addPayload, mesh.DevMsg)
 		// Get model id
 		if true {
@@ -92,9 +96,9 @@ func registerMutation(schema *schemabuilder.Schema) {
 		// Add device to group
 		group.addDevice(device.Addr)
 		// Update net data
-		netData = getNetData(netCollection)
-		netData.NextAddr = incrementAddr(device.Elements[len(device.Elements)-1].Addr)
-		updateNetData(netCollection, netData)
+		netData.updateNextAddr(
+			incrementAddr(device.Elements[len(device.Elements)-1].Addr),
+		)
 		return device, nil
 	})
 	obj.FieldFunc("removeDevice", func(args struct{ Addr string }) (Device, error) {
@@ -143,9 +147,8 @@ func registerMutation(schema *schemabuilder.Schema) {
 			KeyIndex: netData.NetKeyIndex,
 		})
 		// Update net data
-		netData.NextGroupAddr = incrementAddr(netData.NextGroupAddr)
-		netData.NextAppKeyIndex = incrementKeyIndex(netData.NextAppKeyIndex)
-		updateNetData(netCollection, netData)
+		netData.incrementNextGroupAddr()
+		netData.incrementNextAppKeyIndex()
 		return group, nil
 	})
 	obj.FieldFunc("setState", func(args struct {
@@ -192,18 +195,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		devicesCollection.DeleteMany(context.TODO(), bson.D{})
 		netCollection.DeleteMany(context.TODO(), bson.D{})
 		// Add and get net data
-		insertNetData(netCollection, NetData{
-			ID:              primitive.NewObjectID(),
-			NetKey:          netKey,
-			NetKeyIndex:     []byte{0x00, 0x00},
-			NextAppKeyIndex: []byte{0x01, 0x00},
-			Flags:           []byte{0x00},
-			IvIndex:         []byte{0x00, 0x00, 0x00, 0x01},
-			NextAddr:        []byte{0x00, 0x01},
-			NextGroupAddr:   []byte{0xc0, 0x00},
-			HubSeq:          []byte{0x00, 0x00, 0x00},
-			WebKeys:         [][]byte{webKey},
-		})
+		makeNetData(netKey, webKey)
 		return encodeBase64(webKey), nil
 	})
 	obj.FieldFunc("resetHub", func() (bool, error) {
@@ -294,7 +286,7 @@ func authenticate(
 		}
 	}
 	webKey := decodeBase64(input.Variables["webKey"].(string))
-	verify := checkWebKey(netData, webKey)
+	verify := netData.checkWebKey(webKey)
 	if !verify {
 		return &graphql.ComputationOutput{
 			Current: nil,

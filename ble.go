@@ -23,8 +23,8 @@ func onNotify(req []byte) {
 		cmp, err := mesh.DecodePdu(
 			msg,
 			req[1:],
-			netData.NetKey,
-			netData.IvIndex,
+			netData.getNetKey(),
+			netData.getIvIndex(),
 			appKeys,
 			devKeys,
 		)
@@ -163,13 +163,13 @@ func sendMsg(dst []byte, key []byte, payload []byte, msgType mesh.MsgType) {
 	// Encode msg and get new seq
 	msg, seq, err := mesh.EncodeAccessMsg(
 		msgType,
-		netData.HubSeq,
+		netData.getHubSeq(),
 		src,
 		dst,
 		ttl,
-		netData.IvIndex,
+		netData.getIvIndex(),
 		key,
-		netData.NetKey,
+		netData.getNetKey(),
 		payload,
 	)
 	if err != nil {
@@ -178,8 +178,7 @@ func sendMsg(dst []byte, key []byte, payload []byte, msgType mesh.MsgType) {
 	// Send msg
 	sendProxyPdu(cln, write, msg)
 	// Update seq
-	netData.HubSeq = seq
-	updateNetData(netCollection, netData)
+	netData.updateHubSeq(seq)
 }
 
 func provisionDevice(cln ble.Client, write *ble.Characteristic, netKey, keyIndex, flags, ivIndex, devAddr []byte) []byte {

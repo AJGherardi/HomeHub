@@ -182,16 +182,6 @@ func deleteDevice(collection *mongo.Collection, addr []byte) {
 	)
 }
 
-func checkWebKey(data NetData, webKey []byte) bool {
-	keys := data.WebKeys
-	for _, key := range keys {
-		if reflect.DeepEqual(key, webKey) {
-			return true
-		}
-	}
-	return false
-}
-
 func getDevKeys(collection *mongo.Collection) []mesh.DevKey {
 	devices := getDevices(collection)
 	var devKeys []mesh.DevKey
