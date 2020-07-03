@@ -16,13 +16,20 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// ControlResponse is the response for a listControl query
+type ControlResponse struct {
+	Devices []Device
+	Groups  []Group
+}
+
 func registerQuery(schema *schemabuilder.Schema) {
 	obj := schema.Query()
-	obj.FieldFunc("listDevices", func() ([]Device, error) {
-		return getDevices(devicesCollection), nil
-	})
-	obj.FieldFunc("listGroups", func() ([]Group, error) {
-		return getGroups(groupsCollection), nil
+	obj.FieldFunc("listControl", func() (ControlResponse, error) {
+		rsp := ControlResponse{
+			Groups:  getGroups(groupsCollection),
+			Devices: getDevices(devicesCollection),
+		}
+		return rsp, nil
 	})
 	obj.FieldFunc("availableDevices", func() ([]string, error) {
 		nodes := findDevices()
@@ -252,6 +259,15 @@ func registerGroup(schema *schemabuilder.Schema) {
 	obj.FieldFunc("addr", func(ctx context.Context, p *Group) string {
 		reactive.InvalidateAfter(ctx, 5*time.Second)
 		return encodeBase64(p.Addr)
+	})
+	obj.FieldFunc("devAddrs", func(ctx context.Context, p *Group) []string {
+		reactive.InvalidateAfter(ctx, 5*time.Second)
+		var result []string
+		for _, devAddr := range p.DevAddrs {
+			devAddrString := encodeBase64(devAddr)
+			result = append(result, devAddrString)
+		}
+		return result
 	})
 }
 
