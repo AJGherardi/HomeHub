@@ -2,16 +2,13 @@ package main
 
 import (
 	"reflect"
-
-	mesh "github.com/AJGherardi/GoMeshCryptro"
 )
 
-func makeDevice(name, deviceType string, addr []byte, devKey mesh.DevKey) Device {
+func makeDevice(name, deviceType string, addr []byte) Device {
 	device := Device{
-		Name:   name,
-		Type:   deviceType,
-		Addr:   addr,
-		DevKey: devKey,
+		Name: name,
+		Type: deviceType,
+		Addr: addr,
 	}
 	insertDevice(devicesCollection, device)
 	return device
@@ -22,8 +19,6 @@ type Device struct {
 	Name     string
 	Type     string
 	Addr     []byte
-	Seq      []byte
-	DevKey   mesh.DevKey
 	Elements []Element
 }
 
@@ -55,11 +50,6 @@ func (d *Device) addElem(stateType string) []byte {
 	return addr
 }
 
-func (d *Device) updateSeq(seq []byte) {
-	d.Seq = seq
-	updateDevice(devicesCollection, *d)
-}
-
 func (d *Device) updateState(index int, state []byte) {
 	d.Elements[index].State.State = state
 	updateDevice(devicesCollection, *d)
@@ -80,9 +70,6 @@ func (d *Device) getState(index int) State {
 
 func (d *Device) getElemAddr(index int) []byte {
 	return d.Elements[index].Addr
-}
-func (d *Device) getDevKey(index int) mesh.DevKey {
-	return d.DevKey
 }
 
 // Element holds an elements addr and its state

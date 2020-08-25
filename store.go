@@ -4,7 +4,6 @@ import (
 	"context"
 	"reflect"
 
-	mesh "github.com/AJGherardi/GoMeshCryptro"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -41,14 +40,8 @@ func updateNetData(collection *mongo.Collection, data NetData) {
 		context.TODO(),
 		bson.M{"_id": data.ID},
 		bson.M{"$set": bson.M{
-			"netkey":          data.NetKey,
-			"netkeyindex":     data.NetKeyIndex,
 			"nextappkeyindex": data.NextAppKeyIndex,
-			"flags":           data.Flags,
-			"ivindex":         data.IvIndex,
-			"nextaddr":        data.NextAddr,
 			"nextgroupaddr":   data.NextGroupAddr,
-			"hubseq":          data.HubSeq,
 			"webkeys":         data.WebKeys,
 		}},
 	)
@@ -100,7 +93,7 @@ func updateGroup(collection *mongo.Collection, group Group) {
 		context.TODO(),
 		bson.M{"addr": group.Addr},
 		bson.M{"$set": bson.M{
-			"appKey":   group.AppKey,
+			"keyIndex": group.KeyIndex,
 			"name":     group.Name,
 			"devaddrs": group.DevAddrs,
 		}},
@@ -168,9 +161,7 @@ func updateDevice(collection *mongo.Collection, data Device) {
 			"name":     data.Name,
 			"addr":     data.Addr,
 			"type":     data.Type,
-			"seq":      data.Seq,
 			"elements": data.Elements,
-			"devKey":   data.DevKey,
 		}},
 	)
 }
@@ -180,22 +171,4 @@ func deleteDevice(collection *mongo.Collection, addr []byte) {
 		context.TODO(),
 		bson.M{"addr": addr},
 	)
-}
-
-func getDevKeys(collection *mongo.Collection) []mesh.DevKey {
-	devices := getDevices(collection)
-	var devKeys []mesh.DevKey
-	for _, device := range devices {
-		devKeys = append(devKeys, device.DevKey)
-	}
-	return devKeys
-}
-
-func getAppKeys(collection *mongo.Collection) []mesh.AppKey {
-	groups := getGroups(collection)
-	var appKeys []mesh.AppKey
-	for _, group := range groups {
-		appKeys = append(appKeys, group.AppKey)
-	}
-	return appKeys
 }

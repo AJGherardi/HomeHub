@@ -2,24 +2,22 @@ package main
 
 import (
 	"reflect"
-
-	mesh "github.com/AJGherardi/GoMeshCryptro"
 )
 
-func makeGroup(name string, addr []byte, appKey mesh.AppKey) Group {
+func makeGroup(name string, addr, keyIndex []byte) Group {
 	group := Group{
-		Name:   name,
-		Addr:   addr,
-		AppKey: appKey,
+		Name:     name,
+		Addr:     addr,
+		KeyIndex: keyIndex,
 	}
 	insertGroup(groupsCollection, group)
 	return group
 }
 
-// Group holds a collection of devices and its app key id
+// Group holds a collection of devices and its app key
 type Group struct {
 	Name     string
-	AppKey   mesh.AppKey
+	KeyIndex []byte
 	Addr     []byte
 	DevAddrs [][]byte
 }
@@ -42,6 +40,6 @@ func (g *Group) getDevAddrs() [][]byte {
 	return g.DevAddrs
 }
 
-func (g *Group) getAppKey() mesh.AppKey {
-	return g.AppKey
+func (g *Group) getKeyIndex() []byte {
+	return g.KeyIndex
 }

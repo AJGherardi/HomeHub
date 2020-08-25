@@ -1,12 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
-	mesh "github.com/AJGherardi/GoMeshCryptro"
-	"github.com/go-ble/ble"
-	"github.com/go-ble/ble/examples/lib/dev"
+	mesh "github.com/AJGherardi/GoMeshController"
 	"github.com/grandcat/zeroconf"
 	"github.com/samsarahq/thunder/graphql"
 	"github.com/samsarahq/thunder/graphql/introspection"
@@ -15,16 +12,13 @@ import (
 )
 
 var (
-	groupsCollection  *mongo.Collection
-	devicesCollection *mongo.Collection
-	netCollection     *mongo.Collection
-	write             *ble.Characteristic
-	read              *ble.Characteristic
-	cln               ble.Client
-	provMessages      = make(chan []byte)
-	msg               = new(mesh.Msg)
-	d                 ble.Device
-	mdns              *zeroconf.Server
+	groupsCollection   *mongo.Collection
+	devicesCollection  *mongo.Collection
+	netCollection      *mongo.Collection
+	mdns               *zeroconf.Server
+	unprovisionedNodes [][]byte
+	nodeAdded          = make(chan []byte)
+	controller         mesh.Controller
 )
 
 func main() {
@@ -32,29 +26,34 @@ func main() {
 	groupsCollection = getCollection("groups")
 	devicesCollection = getCollection("devices")
 	netCollection = getCollection("net")
-	// Get ble device
-	d, err := dev.NewDevice("default")
-	if err != nil {
-		fmt.Println(err)
-	}
-	ble.SetDefaultDevice(d)
+	// Open Mesh Controller and defer close
+	controller = mesh.Open()
+	defer controller.Close()
+	// Register read functions
+	go controller.Read(
+		// onSetupStatus
+		func() {},
+		// onAddKeyStatus
+		func(appIdx []byte) {},
+		// onUnprovisionedBeacon
+		func(uuid []byte) {
+			unprovisionedNodes = append(unprovisionedNodes, uuid)
+		},
+		// onNodeAdded
+		func(addr []byte) {
+			nodeAdded <- addr
+		},
+	)
 	// Check if configured
 	if getNetData(netCollection).ID == primitive.NilObjectID {
 		// Setup the mdns service
 		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
-	} else {
-		// Check if there are no devices
-		if len(getDevices(devicesCollection)) != 0 {
-			// Connect and get write characteristic if hub is configured
-			cln, write, read = connectToProxy()
-			go reconnectOnDisconnect(cln.Disconnected())
-		}
 	}
 	// Build schema
 	schema := schema()
 	introspection.AddIntrospectionToSchema(schema)
 	// Serve graphql
-	http.Handle("/graphql", graphql.HTTPHandler(schema, authenticate))
+	http.Handle("/graphql", graphql.HTTPHandler(schema))
 	http.ListenAndServe(":8080", nil)
 	// connectAndServe(schema)
 }

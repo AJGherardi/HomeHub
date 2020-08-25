@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	mesh "github.com/AJGherardi/GoMeshCryptro"
 	"github.com/grandcat/zeroconf"
 	"github.com/samsarahq/thunder/graphql"
 	"github.com/samsarahq/thunder/graphql/schemabuilder"
@@ -32,8 +31,12 @@ func registerQuery(schema *schemabuilder.Schema) {
 		return rsp, nil
 	})
 	obj.FieldFunc("availableDevices", func() ([]string, error) {
-		nodes := findDevices()
-		return nodes, nil
+		uuids := make([]string, 0)
+		for _, uuid := range unprovisionedNodes {
+			b64 := encodeBase64(uuid)
+			uuids = append(uuids, b64)
+		}
+		return uuids, nil
 	})
 	obj.FieldFunc("getState", func(args struct {
 		DevAddr    string
@@ -48,64 +51,34 @@ func registerQuery(schema *schemabuilder.Schema) {
 func registerMutation(schema *schemabuilder.Schema) {
 	obj := schema.Mutation()
 	obj.FieldFunc("addDevice", func(args struct {
-		Name    string
-		Addr    string
-		DevAddr string
+		Name string
+		Addr string
+		UUID string
 	}) (Device, error) {
-		// Get net data
-		netData := getNetData(netCollection)
-		// Connect to unprovisioned device
-		cln, write, read = connectToUnprovisioned(args.DevAddr)
 		// Provision device
-		devKey := provisionDevice(
-			cln,
-			write,
-			netData.getNetKey(),
-			netData.getNetKeyIndex(),
-			netData.getFlags(),
-			netData.getIvIndex(),
-			netData.getNextAddr(),
-		)
-		cln.CancelConnection()
-		cln, write, read = nil, nil, nil
-		time.Sleep(1 * time.Second)
-		// Connect to proxy node
-		cln, write, read = connectToProxy()
-		go reconnectOnDisconnect(cln.Disconnected())
+		uuid := decodeBase64(args.UUID)
+		controller.Provision(uuid)
+		// Wait for node added
+		addr := <-nodeAdded
 		// Create device object
 		device := makeDevice(
 			args.Name,
 			"2PowerSwitch",
-			netData.getNextAddr(),
-			mesh.DevKey{Addr: netData.getNextAddr(), Key: devKey},
+			addr,
 		)
 		// Get group
 		groupAddr := decodeBase64(args.Addr)
 		group := getGroupByAddr(groupsCollection, groupAddr)
-		// Send app key add
-		addPayload := appKeyAdd(
-			netData.getNetKeyIndex(),
-			group.getAppKey().KeyIndex,
-			group.getAppKey().Key,
-		)
-		sendMsg(device.Addr, devKey, addPayload, mesh.DevMsg)
 		// Get model id
 		if true {
 			// Set type and add elements
-			elemAddr1 := device.addElem("onoff")
-			elemAddr2 := device.addElem("onoff")
-			// Send app key bind for onoff
-			bindPayload1 := appKeyBind(elemAddr1, group.AppKey.KeyIndex, []byte{0x10, 0x00})
-			sendMsg(device.Addr, devKey, bindPayload1, mesh.DevMsg)
-			bindPayload2 := appKeyBind(elemAddr2, group.AppKey.KeyIndex, []byte{0x10, 0x00})
-			sendMsg(device.Addr, devKey, bindPayload2, mesh.DevMsg)
+			device.addElem("onoff")
+			device.addElem("onoff")
 		}
+		// Configure Device
+		controller.ConfigureNode(device.Addr, group.KeyIndex)
 		// Add device to group
 		group.addDevice(device.Addr)
-		// Update net data
-		netData.updateNextAddr(
-			incrementAddr(device.Elements[len(device.Elements)-1].Addr),
-		)
 		return device, nil
 	})
 	obj.FieldFunc("removeDevice", func(args struct{ Addr string }) (Device, error) {
@@ -113,8 +86,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		devAddr := decodeBase64(args.Addr)
 		device := getDeviceByAddr(devicesCollection, devAddr)
 		// Send reset paylode
-		resetPaylode := nodeReset()
-		sendMsg(devAddr, device.DevKey.Key, resetPaylode, mesh.DevMsg)
+		controller.ResetNode(devAddr)
 		// Remove device from database
 		deleteDevice(devicesCollection, devAddr)
 		// Remove devAddr from group
@@ -130,8 +102,7 @@ func registerMutation(schema *schemabuilder.Schema) {
 		for _, devAddr := range group.getDevAddrs() {
 			device := getDeviceByAddr(devicesCollection, devAddr)
 			// Send reset paylode
-			resetPaylode := nodeReset()
-			sendMsg(devAddr, device.DevKey.Key, resetPaylode, mesh.DevMsg)
+			controller.ResetNode(device.Addr)
 			// Remove device from database
 			deleteDevice(devicesCollection, devAddr)
 		}
@@ -143,16 +114,13 @@ func registerMutation(schema *schemabuilder.Schema) {
 		Name string
 	}) (Group, error) {
 		netData := getNetData(netCollection)
-		// Generate an app key
-		appKey := make([]byte, 16)
-		rand.Read(appKey)
-		aid, _ := mesh.GetAid(appKey)
+		// Get net values
+		keyIndex := netData.getNextAppKeyIndex()
+		groupAddr := netData.getNextGroupAddr()
+		// Add an app key
+		controller.AddKey(keyIndex)
 		// Add a group
-		group := makeGroup(args.Name, netData.NextGroupAddr, mesh.AppKey{
-			Aid:      []byte{aid},
-			Key:      appKey,
-			KeyIndex: netData.NetKeyIndex,
-		})
+		group := makeGroup(args.Name, groupAddr, keyIndex)
 		// Update net data
 		netData.incrementNextGroupAddr()
 		netData.incrementNextAppKeyIndex()
@@ -174,12 +142,10 @@ func registerMutation(schema *schemabuilder.Schema) {
 		// Send State
 		if device.getState(elemNumber).StateType == "onoff" {
 			// Send msg
-			onoffPayload := onOffSet(value[0])
-			sendMsg(
+			controller.SendMessage(
+				value[0],
 				device.getElemAddr(elemNumber),
-				group.AppKey.Key,
-				onoffPayload,
-				mesh.AppMsg,
+				group.KeyIndex,
 			)
 		}
 		return device.getState(elemNumber), nil
@@ -194,15 +160,14 @@ func registerMutation(schema *schemabuilder.Schema) {
 		// Make a web key
 		webKey := make([]byte, 16)
 		rand.Read(webKey)
-		// Make a net key
-		netKey := make([]byte, 16)
-		rand.Read(netKey)
 		// Clean house
 		groupsCollection.DeleteMany(context.TODO(), bson.D{})
 		devicesCollection.DeleteMany(context.TODO(), bson.D{})
 		netCollection.DeleteMany(context.TODO(), bson.D{})
 		// Add and get net data
-		makeNetData(netKey, webKey)
+		makeNetData(webKey)
+		// Setup controller
+		controller.Setup()
 		return encodeBase64(webKey), nil
 	})
 	obj.FieldFunc("resetHub", func() (bool, error) {
@@ -214,9 +179,11 @@ func registerMutation(schema *schemabuilder.Schema) {
 		groupsCollection.DeleteMany(context.TODO(), bson.D{})
 		devicesCollection.DeleteMany(context.TODO(), bson.D{})
 		netCollection.DeleteMany(context.TODO(), bson.D{})
-		// Disconnect from proxy
-		cln, write, read = nil, nil, nil
-		// Mdns
+		// Reset mesh controller
+		controller.Reset()
+		time.Sleep(time.Second)
+		controller.Reboot()
+		// Start Mdns
 		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 		return true, nil
 	})
