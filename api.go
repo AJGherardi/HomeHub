@@ -51,12 +51,12 @@ func registerQuery(schema *schemabuilder.Schema) {
 func registerMutation(schema *schemabuilder.Schema) {
 	obj := schema.Mutation()
 	obj.FieldFunc("addDevice", func(args struct {
-		Name string
-		Addr string
-		UUID string
+		Name    string
+		Addr    string
+		devUUID string
 	}) (Device, error) {
 		// Provision device
-		uuid := decodeBase64(args.UUID)
+		uuid := decodeBase64(args.devUUID)
 		controller.Provision(uuid)
 		// Wait for node added
 		addr := <-nodeAdded
