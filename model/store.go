@@ -10,12 +10,14 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
+// DB holds ref to all needed collections
 type DB struct {
 	GroupsCollection  *mongo.Collection
 	DevicesCollection *mongo.Collection
 	NetCollection     *mongo.Collection
 }
 
+// OpenDB Gets ref to all needed collections
 func OpenDB() DB {
 	groupsCollection := getCollection("groups")
 	devicesCollection := getCollection("devices")
@@ -40,6 +42,7 @@ func getCollection(database string) *mongo.Collection {
 	return collection
 }
 
+// GetNetData returns first NetData
 func (db *DB) GetNetData() NetData {
 	cur, _ := db.NetCollection.Find(context.TODO(), bson.D{})
 	// Deserialize first result
@@ -49,10 +52,12 @@ func (db *DB) GetNetData() NetData {
 	return result
 }
 
+// InsertNetData puts given NetData in the net collection
 func (db *DB) InsertNetData(data NetData) {
 	db.NetCollection.InsertOne(context.TODO(), data)
 }
 
+// UpdateNetData updates the NetData with the given NetData
 func (db *DB) UpdateNetData(data NetData) {
 	db.NetCollection.UpdateOne(
 		context.TODO(),
@@ -65,6 +70,7 @@ func (db *DB) UpdateNetData(data NetData) {
 	)
 }
 
+// GetGroups returns all groups
 func (db *DB) GetGroups() []Group {
 	var groups []Group
 	// Get all Devices
@@ -79,6 +85,7 @@ func (db *DB) GetGroups() []Group {
 	return groups
 }
 
+// GetGroupByAddr returns the group with the given address
 func (db *DB) GetGroupByAddr(addr []byte) Group {
 	var group Group
 	result := db.GroupsCollection.FindOne(context.TODO(), bson.M{"addr": addr})
@@ -86,6 +93,7 @@ func (db *DB) GetGroupByAddr(addr []byte) Group {
 	return group
 }
 
+// GetGroupByDevAddr returns the group that contains the device with the given address
 func (db *DB) GetGroupByDevAddr(addr []byte) Group {
 	// Get all Devices
 	cur, _ := db.GroupsCollection.Find(context.TODO(), bson.D{})
@@ -102,10 +110,12 @@ func (db *DB) GetGroupByDevAddr(addr []byte) Group {
 	return Group{}
 }
 
+// InsertGroup puts given Group in the groups collection
 func (db *DB) InsertGroup(group Group) {
 	db.GroupsCollection.InsertOne(context.TODO(), group)
 }
 
+// UpdateGroup updates the Group with the given Group
 func (db *DB) UpdateGroup(group Group) {
 	db.GroupsCollection.UpdateOne(
 		context.TODO(),
@@ -118,6 +128,7 @@ func (db *DB) UpdateGroup(group Group) {
 	)
 }
 
+// DeleteGroup deletes the Group
 func (db *DB) DeleteGroup(addr []byte) {
 	db.GroupsCollection.DeleteOne(
 		context.TODO(),
@@ -125,6 +136,7 @@ func (db *DB) DeleteGroup(addr []byte) {
 	)
 }
 
+// GetDevices returns all devices
 func (db *DB) GetDevices() []Device {
 	var devices []Device
 	// Get all Devices
@@ -139,6 +151,7 @@ func (db *DB) GetDevices() []Device {
 	return devices
 }
 
+// GetDeviceByElemAddr returns the device containing the elem with the given address
 func (db *DB) GetDeviceByElemAddr(elemAddr []byte) Device {
 	var devices []Device
 	// Get all Devices
@@ -160,6 +173,7 @@ func (db *DB) GetDeviceByElemAddr(elemAddr []byte) Device {
 	return Device{}
 }
 
+// GetDeviceByAddr returns the device with the given address
 func (db *DB) GetDeviceByAddr(addr []byte) Device {
 	var device Device
 	result := db.DevicesCollection.FindOne(context.TODO(), bson.M{"addr": addr})
@@ -167,10 +181,12 @@ func (db *DB) GetDeviceByAddr(addr []byte) Device {
 	return device
 }
 
+// InsertDevice puts given Device in the devices collection
 func (db *DB) InsertDevice(device Device) {
 	db.DevicesCollection.InsertOne(context.TODO(), device)
 }
 
+// UpdateDevice updates the Device with the given Device
 func (db *DB) UpdateDevice(data Device) {
 	db.DevicesCollection.UpdateOne(
 		context.TODO(),
@@ -184,6 +200,7 @@ func (db *DB) UpdateDevice(data Device) {
 	)
 }
 
+// DeleteDevice deletes the device
 func (db *DB) DeleteDevice(addr []byte) {
 	db.DevicesCollection.DeleteOne(
 		context.TODO(),
@@ -191,6 +208,7 @@ func (db *DB) DeleteDevice(addr []byte) {
 	)
 }
 
+// DeleteAll deletes all data
 func (db *DB) DeleteAll() {
 	db.GroupsCollection.DeleteMany(context.TODO(), bson.D{})
 	db.DevicesCollection.DeleteMany(context.TODO(), bson.D{})

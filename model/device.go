@@ -6,6 +6,7 @@ import (
 	"github.com/AJGherardi/HomeHub/utils"
 )
 
+// MakeDevice makes a new device with the given addr
 func MakeDevice(name, deviceType string, addr []byte, db DB) Device {
 	device := Device{
 		Name: name,
@@ -24,6 +25,7 @@ type Device struct {
 	Elements []Element
 }
 
+// AddElem adds a element to the device
 func (d *Device) AddElem(stateType string, db DB) []byte {
 	// Check if first elem
 	if len(d.Elements) == 0 {
@@ -52,11 +54,13 @@ func (d *Device) AddElem(stateType string, db DB) []byte {
 	return addr
 }
 
+// UpdateState updates the state of a element
 func (d *Device) UpdateState(index int, state []byte, db DB) {
 	d.Elements[index].State.State = state
 	db.UpdateDevice(*d)
 }
 
+// UpdateStateUsingAddr updates the state of the element with the given address
 func (d *Device) UpdateStateUsingAddr(addr, state []byte, db DB) {
 	for i, element := range d.Elements {
 		if reflect.DeepEqual(element.Addr, addr) {
@@ -66,10 +70,12 @@ func (d *Device) UpdateStateUsingAddr(addr, state []byte, db DB) {
 	}
 }
 
+// GetState returns the state of a element
 func (d *Device) GetState(index int) State {
 	return d.Elements[index].State
 }
 
+// GetElemAddr returns the address of a element
 func (d *Device) GetElemAddr(index int) []byte {
 	return d.Elements[index].Addr
 }

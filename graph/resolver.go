@@ -7,6 +7,7 @@ import (
 	"github.com/grandcat/zeroconf"
 )
 
+// Resolver is the root of the schema
 type Resolver struct {
 	DB         model.DB
 	Controller mesh.Controller
@@ -14,6 +15,7 @@ type Resolver struct {
 	Mdns       *zeroconf.Server
 }
 
+// New returns the servers config
 func New(db model.DB, controller mesh.Controller, nodeAdded chan []byte, mdns *zeroconf.Server) generated.Config {
 	c := generated.Config{
 		Resolvers: &Resolver{DB: db, Controller: controller, NodeAdded: nodeAdded, Mdns: mdns},

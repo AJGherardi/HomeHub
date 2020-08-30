@@ -5,15 +5,18 @@ import (
 	"encoding/binary"
 )
 
+// EncodeBase64 converts bytes to base 64
 func EncodeBase64(bytes []byte) string {
 	return base64.StdEncoding.EncodeToString(bytes)
 }
 
+// DecodeBase64 converts base 64 to bytes
 func DecodeBase64(input string) []byte {
 	output, _ := base64.StdEncoding.DecodeString(input)
 	return output
 }
 
+// IncrementAddr increments the given addr
 func IncrementAddr(input []byte) []byte {
 	// Convert to uint16
 	addr := binary.BigEndian.Uint16(input)
@@ -25,7 +28,7 @@ func IncrementAddr(input []byte) []byte {
 	return output
 }
 
-// IncrementKeyIndex increments an key index
+// IncrementKeyIndex increments the given key index
 func IncrementKeyIndex(input []byte) []byte {
 	// Convert to uint16
 	index := binary.LittleEndian.Uint16(input)
@@ -37,18 +40,7 @@ func IncrementKeyIndex(input []byte) []byte {
 	return output
 }
 
-func EncodeKeyIndices(netIndex []byte, appIndex []byte) []byte {
-	// Remove Padding
-	netInt := binary.LittleEndian.Uint16(netIndex)
-	appInt := binary.LittleEndian.Uint16(appIndex)
-	// Add indices
-	indices := uint32(appInt)<<12 | uint32(netInt)
-	// Convert back to byte slice
-	output := make([]byte, 4)
-	binary.LittleEndian.PutUint32(output, indices)
-	return output[:3]
-}
-
+// RemoveDevAddr removes the address at the given index
 func RemoveDevAddr(slice [][]byte, i int) [][]byte {
 	return append(slice[:i], slice[i+1:]...)
 }
