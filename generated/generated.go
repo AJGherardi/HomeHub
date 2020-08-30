@@ -53,9 +53,10 @@ type ComplexityRoot struct {
 	}
 
 	Device struct {
-		Addr func(childComplexity int) int
-		Name func(childComplexity int) int
-		Type func(childComplexity int) int
+		Addr     func(childComplexity int) int
+		Elements func(childComplexity int) int
+		Name     func(childComplexity int) int
+		Type     func(childComplexity int) int
 	}
 
 	Element struct {
@@ -152,6 +153,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Device.Addr(childComplexity), true
+
+	case "Device.elements":
+		if e.complexity.Device.Elements == nil {
+			break
+		}
+
+		return e.complexity.Device.Elements(childComplexity), true
 
 	case "Device.name":
 		if e.complexity.Device.Name == nil {
@@ -377,6 +385,7 @@ var sources = []*ast.Source{
   addr: String!
   name: String!
   type: String!
+  elements: [Element!]!
 }
 
 type Element {
@@ -409,6 +418,11 @@ type Query {
   getState(devAddr: String!, elemNumber: Int!): State!
   listControl: ControlResponse!
 }
+
+# type Subscription {
+#   listControl: ControlResponse!
+  
+# }
 
 type State {
   state: String!
@@ -783,6 +797,40 @@ func (ec *executionContext) _Device_type(ctx context.Context, field graphql.Coll
 	res := resTmp.(string)
 	fc.Result = res
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Device_elements(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Device",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Elements, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]model.Element)
+	fc.Result = res
+	return ec.marshalNElement2ᚕgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐElementᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Element_addr(ctx context.Context, field graphql.CollectedField, obj *model.Element) (ret graphql.Marshaler) {
@@ -2570,6 +2618,11 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&invalids, 1)
 			}
+		case "elements":
+			out.Values[i] = ec._Device_elements(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3160,6 +3213,47 @@ func (ec *executionContext) marshalNDevice2ᚖgithubᚗcomᚋAJGherardiᚋHomeHu
 		return graphql.Null
 	}
 	return ec._Device(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNElement2githubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐElement(ctx context.Context, sel ast.SelectionSet, v model.Element) graphql.Marshaler {
+	return ec._Element(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNElement2ᚕgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐElementᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Element) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNElement2githubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐElement(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
 }
 
 func (ec *executionContext) marshalNGroup2githubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐGroup(ctx context.Context, sel ast.SelectionSet, v model.Group) graphql.Marshaler {

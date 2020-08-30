@@ -2,6 +2,7 @@ type Device {
   addr: String!
   name: String!
   type: String!
+  elements: [Element!]!
 }
 
 type Element {
@@ -34,6 +35,10 @@ type Query {
   getState(devAddr: String!, elemNumber: Int!): State!
   listControl: ControlResponse!
 }
+
+# type Subscription {
+#   listControl: ControlResponse!
+# }
 
 type State {
   state: String!

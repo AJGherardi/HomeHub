@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -15,7 +16,7 @@ import (
 
 var (
 	mdns               *zeroconf.Server
-	unprovisionedNodes [][]byte
+	unprovisionedNodes = new([][]byte)
 	nodeAdded          = make(chan []byte)
 	controller         mesh.Controller
 )
@@ -34,11 +35,17 @@ func main() {
 		func(appIdx []byte) {},
 		// onUnprovisionedBeacon
 		func(uuid []byte) {
-			unprovisionedNodes = append(unprovisionedNodes, uuid)
+			*unprovisionedNodes = append(*unprovisionedNodes, uuid)
 		},
 		// onNodeAdded
 		func(addr []byte) {
 			nodeAdded <- addr
+		},
+		func(addr []byte, state byte) {
+			fmt.Printf("addr %x \n", addr)
+			fmt.Printf("state %x \n", state)
+			device := db.GetDeviceByElemAddr(addr)
+			device.UpdateStateUsingAddr(addr, []byte{state}, db)
 		},
 	)
 	// Check if configured
@@ -47,7 +54,11 @@ func main() {
 		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 	}
 	// Serve the schema
-	srv := handler.NewDefaultServer(generated.NewExecutableSchema(graph.New(db, controller, nodeAdded, mdns)))
+	srv := handler.NewDefaultServer(
+		generated.NewExecutableSchema(
+			graph.New(db, controller, nodeAdded, mdns, unprovisionedNodes),
+		),
+	)
 	http.Handle("/", playground.Handler("GraphQL playground", "/graphql"))
 
 	http.Handle("/graphql", srv)

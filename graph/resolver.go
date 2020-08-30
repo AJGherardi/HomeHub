@@ -9,16 +9,23 @@ import (
 
 // Resolver is the root of the schema
 type Resolver struct {
-	DB         model.DB
-	Controller mesh.Controller
-	NodeAdded  chan []byte
-	Mdns       *zeroconf.Server
+	DB                 model.DB
+	Controller         mesh.Controller
+	NodeAdded          chan []byte
+	UnprovisionedNodes *[][]byte
+	Mdns               *zeroconf.Server
 }
 
 // New returns the servers config
-func New(db model.DB, controller mesh.Controller, nodeAdded chan []byte, mdns *zeroconf.Server) generated.Config {
+func New(db model.DB, controller mesh.Controller, nodeAdded chan []byte, mdns *zeroconf.Server, unprovisionedNodes *[][]byte) generated.Config {
 	c := generated.Config{
-		Resolvers: &Resolver{DB: db, Controller: controller, NodeAdded: nodeAdded, Mdns: mdns},
+		Resolvers: &Resolver{
+			DB:                 db,
+			Controller:         controller,
+			NodeAdded:          nodeAdded,
+			Mdns:               mdns,
+			UnprovisionedNodes: unprovisionedNodes,
+		},
 	}
 	return c
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/AJGherardi/HomeHub/generated"
@@ -103,7 +102,7 @@ func (r *mutationResolver) AddGroup(ctx context.Context, name string) (*model.Gr
 
 func (r *mutationResolver) ConfigHub(ctx context.Context) (string, error) {
 	// Check if configured
-	if r.DB.GetNetData().ID == primitive.NilObjectID {
+	if r.DB.GetNetData().ID != primitive.NilObjectID {
 		return "", errors.New("already configured")
 	}
 	// Stop the mdns server
@@ -140,8 +139,6 @@ func (r *mutationResolver) SetState(ctx context.Context, devAddr string, elemNum
 	state := utils.DecodeBase64(value)
 	address := utils.DecodeBase64(devAddr)
 	device := r.DB.GetDeviceByAddr(address)
-	// Set State
-	device.UpdateState(elemNumber, state, r.DB)
 	// Get appKey from group
 	group := r.DB.GetGroupByDevAddr(device.Addr)
 	// Send State
@@ -158,7 +155,12 @@ func (r *mutationResolver) SetState(ctx context.Context, devAddr string, elemNum
 }
 
 func (r *queryResolver) AvailableDevices(ctx context.Context) ([]string, error) {
-	panic(fmt.Errorf("not implemented"))
+	uuids := make([]string, 0)
+	for _, uuid := range *r.UnprovisionedNodes {
+		b64 := utils.EncodeBase64(uuid)
+		uuids = append(uuids, b64)
+	}
+	return uuids, nil
 }
 
 func (r *queryResolver) GetState(ctx context.Context, devAddr string, elemNumber int) (*model.State, error) {
