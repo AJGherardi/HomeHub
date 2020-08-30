@@ -1,0 +1,47 @@
+type Device {
+  addr: String!
+  name: String!
+  type: String!
+}
+
+type Element {
+  addr: String!
+  state: State!
+}
+
+type Group {
+  addr: String!
+  name: String!
+}
+
+type Mutation {
+  addDevice(addr: String!, devUUID: String!, name: String!): Device!
+  removeDevice(addr: String!): Device!
+  removeGroup(addr: String!): Group!
+  addGroup(name: String!): Group!
+  configHub: String!
+  resetHub: Boolean!
+  setState(devAddr: String!, elemNumber: Int!, value: String!): State!
+}
+
+type ControlResponse {
+  devices: [Device!]!
+  groups: [Group!]!
+}
+
+type Query {
+  availableDevices: [String!]!
+  getState(devAddr: String!, elemNumber: Int!): State!
+  listControl: ControlResponse!
+}
+
+type State {
+  state: String!
+  stateType: String!
+}
+
+
+schema {
+    query: Query
+    mutation: Mutation
+}

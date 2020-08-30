@@ -3,18 +3,17 @@ package main
 import (
 	"net/http"
 
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/playground"
 	mesh "github.com/AJGherardi/GoMeshController"
+	"github.com/AJGherardi/HomeHub/generated"
+	"github.com/AJGherardi/HomeHub/graph"
+	"github.com/AJGherardi/HomeHub/model"
 	"github.com/grandcat/zeroconf"
-	"github.com/samsarahq/thunder/graphql"
-	"github.com/samsarahq/thunder/graphql/introspection"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var (
-	groupsCollection   *mongo.Collection
-	devicesCollection  *mongo.Collection
-	netCollection      *mongo.Collection
 	mdns               *zeroconf.Server
 	unprovisionedNodes [][]byte
 	nodeAdded          = make(chan []byte)
@@ -22,10 +21,8 @@ var (
 )
 
 func main() {
-	// Get ref to collections
-	groupsCollection = getCollection("groups")
-	devicesCollection = getCollection("devices")
-	netCollection = getCollection("net")
+	// Get db
+	db := model.OpenDB()
 	// Open Mesh Controller and defer close
 	controller = mesh.Open()
 	defer controller.Close()
@@ -45,15 +42,14 @@ func main() {
 		},
 	)
 	// Check if configured
-	if getNetData(netCollection).ID == primitive.NilObjectID {
+	if db.GetNetData().ID == primitive.NilObjectID {
 		// Setup the mdns service
 		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 	}
-	// Build schema
-	schema := schema()
-	introspection.AddIntrospectionToSchema(schema)
-	// Serve graphql
-	http.Handle("/graphql", graphql.HTTPHandler(schema))
+	// Serve the schema
+	srv := handler.NewDefaultServer(generated.NewExecutableSchema(graph.New(db, controller, nodeAdded, mdns)))
+	http.Handle("/", playground.Handler("GraphQL playground", "/graphql"))
+
+	http.Handle("/graphql", srv)
 	http.ListenAndServe(":8080", nil)
-	// connectAndServe(schema)
 }

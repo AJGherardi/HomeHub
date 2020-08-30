@@ -1,0 +1,18 @@
+schema:
+  - schema.graphqls
+
+exec:
+  filename: generated/generated.go
+  package: generated
+
+model:
+  filename: generated/models_gen.go
+  package: generated
+
+resolver:
+  layout: follow-schema
+  dir: graph
+  package: graph
+
+autobind:
+  - "github.com/AJGherardi/HomeHub/model"

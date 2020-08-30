@@ -1,4 +1,4 @@
-package main
+package model
 
 import (
 	"context"
@@ -9,6 +9,24 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
+
+type DB struct {
+	GroupsCollection  *mongo.Collection
+	DevicesCollection *mongo.Collection
+	NetCollection     *mongo.Collection
+}
+
+func OpenDB() DB {
+	groupsCollection := getCollection("groups")
+	devicesCollection := getCollection("devices")
+	netCollection := getCollection("net")
+	db := DB{
+		GroupsCollection:  groupsCollection,
+		DevicesCollection: devicesCollection,
+		NetCollection:     netCollection,
+	}
+	return db
+}
 
 func getCollection(database string) *mongo.Collection {
 	// Get client
@@ -22,8 +40,8 @@ func getCollection(database string) *mongo.Collection {
 	return collection
 }
 
-func getNetData(collection *mongo.Collection) NetData {
-	cur, _ := collection.Find(context.TODO(), bson.D{})
+func (db *DB) GetNetData() NetData {
+	cur, _ := db.NetCollection.Find(context.TODO(), bson.D{})
 	// Deserialize first result
 	cur.Next(context.TODO())
 	var result NetData
@@ -31,12 +49,12 @@ func getNetData(collection *mongo.Collection) NetData {
 	return result
 }
 
-func insertNetData(collection *mongo.Collection, data NetData) {
-	collection.InsertOne(context.TODO(), data)
+func (db *DB) InsertNetData(data NetData) {
+	db.NetCollection.InsertOne(context.TODO(), data)
 }
 
-func updateNetData(collection *mongo.Collection, data NetData) {
-	collection.UpdateOne(
+func (db *DB) UpdateNetData(data NetData) {
+	db.NetCollection.UpdateOne(
 		context.TODO(),
 		bson.M{"_id": data.ID},
 		bson.M{"$set": bson.M{
@@ -47,10 +65,10 @@ func updateNetData(collection *mongo.Collection, data NetData) {
 	)
 }
 
-func getGroups(collection *mongo.Collection) []Group {
+func (db *DB) GetGroups() []Group {
 	var groups []Group
 	// Get all Devices
-	cur, _ := collection.Find(context.TODO(), bson.D{})
+	cur, _ := db.GroupsCollection.Find(context.TODO(), bson.D{})
 	// Deserialize into array of Groups
 	for cur.Next(context.TODO()) {
 		var result Group
@@ -61,16 +79,16 @@ func getGroups(collection *mongo.Collection) []Group {
 	return groups
 }
 
-func getGroupByAddr(collection *mongo.Collection, addr []byte) Group {
+func (db *DB) GetGroupByAddr(addr []byte) Group {
 	var group Group
-	result := collection.FindOne(context.TODO(), bson.M{"addr": addr})
+	result := db.GroupsCollection.FindOne(context.TODO(), bson.M{"addr": addr})
 	result.Decode(&group)
 	return group
 }
 
-func getGroupByDevAddr(collection *mongo.Collection, addr []byte) Group {
+func (db *DB) GetGroupByDevAddr(addr []byte) Group {
 	// Get all Devices
-	cur, _ := collection.Find(context.TODO(), bson.D{})
+	cur, _ := db.GroupsCollection.Find(context.TODO(), bson.D{})
 	// Deserialize into array of Groups
 	for cur.Next(context.TODO()) {
 		var result Group
@@ -84,12 +102,12 @@ func getGroupByDevAddr(collection *mongo.Collection, addr []byte) Group {
 	return Group{}
 }
 
-func insertGroup(collection *mongo.Collection, group Group) {
-	collection.InsertOne(context.TODO(), group)
+func (db *DB) InsertGroup(group Group) {
+	db.GroupsCollection.InsertOne(context.TODO(), group)
 }
 
-func updateGroup(collection *mongo.Collection, group Group) {
-	collection.UpdateOne(
+func (db *DB) UpdateGroup(group Group) {
+	db.GroupsCollection.UpdateOne(
 		context.TODO(),
 		bson.M{"addr": group.Addr},
 		bson.M{"$set": bson.M{
@@ -100,17 +118,17 @@ func updateGroup(collection *mongo.Collection, group Group) {
 	)
 }
 
-func deleteGroup(collection *mongo.Collection, addr []byte) {
-	collection.DeleteOne(
+func (db *DB) DeleteGroup(addr []byte) {
+	db.GroupsCollection.DeleteOne(
 		context.TODO(),
 		bson.M{"addr": addr},
 	)
 }
 
-func getDevices(collection *mongo.Collection) []Device {
+func (db *DB) GetDevices() []Device {
 	var devices []Device
 	// Get all Devices
-	cur, _ := collection.Find(context.TODO(), bson.D{})
+	cur, _ := db.DevicesCollection.Find(context.TODO(), bson.D{})
 	// Deserialize into array of devices
 	for cur.Next(context.TODO()) {
 		var result Device
@@ -121,10 +139,10 @@ func getDevices(collection *mongo.Collection) []Device {
 	return devices
 }
 
-func getDeviceByElemAddr(collection *mongo.Collection, elemAddr []byte) Device {
+func (db *DB) GetDeviceByElemAddr(elemAddr []byte) Device {
 	var devices []Device
 	// Get all Devices
-	cur, _ := collection.Find(context.TODO(), bson.D{})
+	cur, _ := db.DevicesCollection.Find(context.TODO(), bson.D{})
 	// Deserialize into array of devices
 	for cur.Next(context.TODO()) {
 		var result Device
@@ -142,19 +160,19 @@ func getDeviceByElemAddr(collection *mongo.Collection, elemAddr []byte) Device {
 	return Device{}
 }
 
-func getDeviceByAddr(collection *mongo.Collection, addr []byte) Device {
+func (db *DB) GetDeviceByAddr(addr []byte) Device {
 	var device Device
-	result := collection.FindOne(context.TODO(), bson.M{"addr": addr})
+	result := db.DevicesCollection.FindOne(context.TODO(), bson.M{"addr": addr})
 	result.Decode(&device)
 	return device
 }
 
-func insertDevice(collection *mongo.Collection, device Device) {
-	collection.InsertOne(context.TODO(), device)
+func (db *DB) InsertDevice(device Device) {
+	db.DevicesCollection.InsertOne(context.TODO(), device)
 }
 
-func updateDevice(collection *mongo.Collection, data Device) {
-	collection.UpdateOne(
+func (db *DB) UpdateDevice(data Device) {
+	db.DevicesCollection.UpdateOne(
 		context.TODO(),
 		bson.M{"addr": data.Addr},
 		bson.M{"$set": bson.M{
@@ -166,9 +184,15 @@ func updateDevice(collection *mongo.Collection, data Device) {
 	)
 }
 
-func deleteDevice(collection *mongo.Collection, addr []byte) {
-	collection.DeleteOne(
+func (db *DB) DeleteDevice(addr []byte) {
+	db.DevicesCollection.DeleteOne(
 		context.TODO(),
 		bson.M{"addr": addr},
 	)
+}
+
+func (db *DB) DeleteAll() {
+	db.GroupsCollection.DeleteMany(context.TODO(), bson.D{})
+	db.DevicesCollection.DeleteMany(context.TODO(), bson.D{})
+	db.NetCollection.DeleteMany(context.TODO(), bson.D{})
 }

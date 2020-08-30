@@ -1,16 +1,18 @@
-package main
+package model
 
 import (
 	"reflect"
+
+	"github.com/AJGherardi/HomeHub/utils"
 )
 
-func makeGroup(name string, addr, keyIndex []byte) Group {
+func MakeGroup(name string, addr, keyIndex []byte, db DB) Group {
 	group := Group{
 		Name:     name,
 		Addr:     addr,
 		KeyIndex: keyIndex,
 	}
-	insertGroup(groupsCollection, group)
+	db.InsertGroup(group)
 	return group
 }
 
@@ -22,24 +24,24 @@ type Group struct {
 	DevAddrs [][]byte
 }
 
-func (g *Group) addDevice(addr []byte) {
+func (g *Group) AddDevice(addr []byte, db DB) {
 	g.DevAddrs = append(g.DevAddrs, addr)
-	updateGroup(groupsCollection, *g)
+	db.UpdateGroup(*g)
 }
 
-func (g *Group) removeDevice(devAddr []byte) {
+func (g *Group) RemoveDevice(devAddr []byte, db DB) {
 	for i, addr := range g.DevAddrs {
 		if reflect.DeepEqual(addr, devAddr) {
-			g.DevAddrs = removeDevAddr(g.DevAddrs, i)
+			g.DevAddrs = utils.RemoveDevAddr(g.DevAddrs, i)
 		}
 	}
-	updateGroup(groupsCollection, *g)
+	db.UpdateGroup(*g)
 }
 
-func (g *Group) getDevAddrs() [][]byte {
+func (g *Group) GetDevAddrs() [][]byte {
 	return g.DevAddrs
 }
 
-func (g *Group) getKeyIndex() []byte {
+func (g *Group) GetKeyIndex() []byte {
 	return g.KeyIndex
 }
