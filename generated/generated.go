@@ -57,12 +57,12 @@ type ComplexityRoot struct {
 	Device struct {
 		Addr     func(childComplexity int) int
 		Elements func(childComplexity int) int
-		Name     func(childComplexity int) int
 		Type     func(childComplexity int) int
 	}
 
 	Element struct {
 		Addr  func(childComplexity int) int
+		Name  func(childComplexity int) int
 		State func(childComplexity int) int
 	}
 
@@ -79,11 +79,12 @@ type ComplexityRoot struct {
 		RemoveDevice func(childComplexity int, addr string) int
 		RemoveGroup  func(childComplexity int, addr string) int
 		ResetHub     func(childComplexity int) int
-		SetState     func(childComplexity int, devAddr string, elemNumber int, value string) int
+		SetState     func(childComplexity int, addr string, value string) int
 	}
 
 	Query struct {
 		AvailableDevices func(childComplexity int) int
+		AvailableGroups  func(childComplexity int) int
 		GetState         func(childComplexity int, devAddr string, elemNumber int) int
 	}
 
@@ -115,10 +116,11 @@ type MutationResolver interface {
 	AddGroup(ctx context.Context, name string) (*model.Group, error)
 	ConfigHub(ctx context.Context) (string, error)
 	ResetHub(ctx context.Context) (bool, error)
-	SetState(ctx context.Context, devAddr string, elemNumber int, value string) (*model.State, error)
+	SetState(ctx context.Context, addr string, value string) (*model.State, error)
 }
 type QueryResolver interface {
 	AvailableDevices(ctx context.Context) ([]string, error)
+	AvailableGroups(ctx context.Context) ([]*model.Group, error)
 	GetState(ctx context.Context, devAddr string, elemNumber int) (*model.State, error)
 }
 type StateResolver interface {
@@ -171,13 +173,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Device.Elements(childComplexity), true
 
-	case "Device.name":
-		if e.complexity.Device.Name == nil {
-			break
-		}
-
-		return e.complexity.Device.Name(childComplexity), true
-
 	case "Device.type":
 		if e.complexity.Device.Type == nil {
 			break
@@ -191,6 +186,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Element.Addr(childComplexity), true
+
+	case "Element.name":
+		if e.complexity.Element.Name == nil {
+			break
+		}
+
+		return e.complexity.Element.Name(childComplexity), true
 
 	case "Element.state":
 		if e.complexity.Element.State == nil {
@@ -292,7 +294,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.SetState(childComplexity, args["devAddr"].(string), args["elemNumber"].(int), args["value"].(string)), true
+		return e.complexity.Mutation.SetState(childComplexity, args["addr"].(string), args["value"].(string)), true
 
 	case "Query.availableDevices":
 		if e.complexity.Query.AvailableDevices == nil {
@@ -300,6 +302,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.AvailableDevices(childComplexity), true
+
+	case "Query.availableGroups":
+		if e.complexity.Query.AvailableGroups == nil {
+			break
+		}
+
+		return e.complexity.Query.AvailableGroups(childComplexity), true
 
 	case "Query.getState":
 		if e.complexity.Query.GetState == nil {
@@ -417,12 +426,12 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 var sources = []*ast.Source{
 	{Name: "schema.graphqls", Input: `type Device {
   addr: String!
-  name: String!
   type: String!
   elements: [Element!]!
 }
 
 type Element {
+  name: String!
   addr: String!
   state: State!
 }
@@ -440,7 +449,7 @@ type Mutation {
   addGroup(name: String!): Group!
   configHub: String!
   resetHub: Boolean!
-  setState(devAddr: String!, elemNumber: Int!, value: String!): State!
+  setState(addr: String!, value: String!): State!
 }
 
 type ControlResponse {
@@ -450,8 +459,8 @@ type ControlResponse {
 
 type Query {
   availableDevices: [String!]!
+  availableGroups: [Group]
   getState(devAddr: String!, elemNumber: Int!): State!
-  # listControl: ControlResponse!
 }
 
 type Subscription {
@@ -557,32 +566,23 @@ func (ec *executionContext) field_Mutation_setState_args(ctx context.Context, ra
 	var err error
 	args := map[string]interface{}{}
 	var arg0 string
-	if tmp, ok := rawArgs["devAddr"]; ok {
-		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("devAddr"))
+	if tmp, ok := rawArgs["addr"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("addr"))
 		arg0, err = ec.unmarshalNString2string(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["devAddr"] = arg0
-	var arg1 int
-	if tmp, ok := rawArgs["elemNumber"]; ok {
-		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("elemNumber"))
-		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["elemNumber"] = arg1
-	var arg2 string
+	args["addr"] = arg0
+	var arg1 string
 	if tmp, ok := rawArgs["value"]; ok {
 		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("value"))
-		arg2, err = ec.unmarshalNString2string(ctx, tmp)
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["value"] = arg2
+	args["value"] = arg1
 	return args, nil
 }
 
@@ -765,40 +765,6 @@ func (ec *executionContext) _Device_addr(ctx context.Context, field graphql.Coll
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Device_name(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:   "Device",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Name, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
 func (ec *executionContext) _Device_type(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -865,6 +831,40 @@ func (ec *executionContext) _Device_elements(ctx context.Context, field graphql.
 	res := resTmp.([]model.Element)
 	fc.Result = res
 	return ec.marshalNElement2ᚕgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐElementᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Element_name(ctx context.Context, field graphql.CollectedField, obj *model.Element) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Element",
+		Field:    field,
+		Args:     nil,
+		IsMethod: false,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Element_addr(ctx context.Context, field graphql.CollectedField, obj *model.Element) (ret graphql.Marshaler) {
@@ -1293,7 +1293,7 @@ func (ec *executionContext) _Mutation_setState(ctx context.Context, field graphq
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().SetState(rctx, args["devAddr"].(string), args["elemNumber"].(int), args["value"].(string))
+		return ec.resolvers.Mutation().SetState(rctx, args["addr"].(string), args["value"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1342,6 +1342,37 @@ func (ec *executionContext) _Query_availableDevices(ctx context.Context, field g
 	res := resTmp.([]string)
 	fc.Result = res
 	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_availableGroups(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().AvailableGroups(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Group)
+	fc.Result = res
+	return ec.marshalOGroup2ᚕᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐGroup(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_getState(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2686,11 +2717,6 @@ func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, o
 				}
 				return res
 			})
-		case "name":
-			out.Values[i] = ec._Device_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&invalids, 1)
-			}
 		case "type":
 			out.Values[i] = ec._Device_type(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -2723,6 +2749,11 @@ func (ec *executionContext) _Element(ctx context.Context, sel ast.SelectionSet, 
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Element")
+		case "name":
+			out.Values[i] = ec._Element_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&invalids, 1)
+			}
 		case "addr":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
@@ -2896,6 +2927,17 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				if res == graphql.Null {
 					atomic.AddUint32(&invalids, 1)
 				}
+				return res
+			})
+		case "availableGroups":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_availableGroups(ctx, field)
 				return res
 			})
 		case "getState":
@@ -3730,6 +3772,53 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 		return graphql.Null
 	}
 	return graphql.MarshalBoolean(*v)
+}
+
+func (ec *executionContext) marshalOGroup2ᚕᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐGroup(ctx context.Context, sel ast.SelectionSet, v []*model.Group) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalOGroup2ᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐGroup(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) marshalOGroup2ᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐGroup(ctx context.Context, sel ast.SelectionSet, v *model.Group) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Group(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {

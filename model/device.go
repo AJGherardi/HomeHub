@@ -7,9 +7,8 @@ import (
 )
 
 // MakeDevice makes a new device with the given addr
-func MakeDevice(name, deviceType string, addr []byte, db DB) Device {
+func MakeDevice(deviceType string, addr []byte, db DB) Device {
 	device := Device{
-		Name: name,
 		Type: deviceType,
 		Addr: addr,
 	}
@@ -19,18 +18,18 @@ func MakeDevice(name, deviceType string, addr []byte, db DB) Device {
 
 // Device holds the name addr and type of device
 type Device struct {
-	Name     string
 	Type     string
 	Addr     []byte
 	Elements []Element
 }
 
 // AddElem adds a element to the device
-func (d *Device) AddElem(stateType string, db DB) []byte {
+func (d *Device) AddElem(name, stateType string, db DB) []byte {
 	// Check if first elem
 	if len(d.Elements) == 0 {
 		// Create element with device main addr
 		element := Element{
+			Name: name,
 			Addr: d.Addr,
 			State: State{
 				State:     []byte{0x00},
@@ -43,6 +42,7 @@ func (d *Device) AddElem(stateType string, db DB) []byte {
 	// If not create element using incremented address
 	addr := utils.IncrementAddr(d.Elements[len(d.Elements)-1].Addr)
 	element := Element{
+		Name: name,
 		Addr: addr,
 		State: State{
 			State:     []byte{0x00},
@@ -80,8 +80,9 @@ func (d *Device) GetElemAddr(index int) []byte {
 	return d.Elements[index].Addr
 }
 
-// Element holds an elements addr and its state
+// Element holds an elements name, addr and its state
 type Element struct {
+	Name  string
 	Addr  []byte
 	State State
 }

@@ -60,7 +60,6 @@ func main() {
 			graph.New(db, controller, nodeAdded, mdns, unprovisionedNodes),
 		),
 	)
-	srv.AddTransport(transport.POST{})
 	srv.AddTransport(transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
 		Upgrader: websocket.Upgrader{

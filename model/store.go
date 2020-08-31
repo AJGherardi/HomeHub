@@ -192,7 +192,6 @@ func (db *DB) UpdateDevice(data Device) {
 		context.TODO(),
 		bson.M{"addr": data.Addr},
 		bson.M{"$set": bson.M{
-			"name":     data.Name,
 			"addr":     data.Addr,
 			"type":     data.Type,
 			"elements": data.Elements,

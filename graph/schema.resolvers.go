@@ -42,7 +42,6 @@ func (r *mutationResolver) AddDevice(ctx context.Context, addr string, devUUID s
 	nodeAddr := <-r.NodeAdded
 	// Create device object
 	device := model.MakeDevice(
-		name,
 		"2PowerSwitch",
 		nodeAddr,
 		r.DB,
@@ -50,14 +49,17 @@ func (r *mutationResolver) AddDevice(ctx context.Context, addr string, devUUID s
 	// Get group
 	groupAddr := utils.DecodeBase64(addr)
 	group := r.DB.GetGroupByAddr(groupAddr)
-	// Get model id
-	if true {
-		// Set type and add elements
-		device.AddElem("onoff", r.DB)
-		device.AddElem("onoff", r.DB)
-	}
 	// Configure Device
 	r.Controller.ConfigureNode(device.Addr, group.KeyIndex)
+	time.Sleep(100 * time.Millisecond)
+	if true {
+		// Set type and add elements
+		elemAddr0 := device.AddElem(name+"-0", "onoff", r.DB)
+		r.Controller.ConfigureElem(device.Addr, elemAddr0, group.KeyIndex)
+		time.Sleep(100 * time.Millisecond)
+		elemAddr1 := device.AddElem(name+"-1", "onoff", r.DB)
+		r.Controller.ConfigureElem(device.Addr, elemAddr1, group.KeyIndex)
+	}
 	// Add device to group
 	group.AddDevice(device.Addr, r.DB)
 	return &device, nil
@@ -144,22 +146,22 @@ func (r *mutationResolver) ResetHub(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (r *mutationResolver) SetState(ctx context.Context, devAddr string, elemNumber int, value string) (*model.State, error) {
+func (r *mutationResolver) SetState(ctx context.Context, addr string, value string) (*model.State, error) {
 	state := utils.DecodeBase64(value)
-	address := utils.DecodeBase64(devAddr)
-	device := r.DB.GetDeviceByAddr(address)
+	address := utils.DecodeBase64(addr)
+	device := r.DB.GetDeviceByElemAddr(address)
 	// Get appKey from group
 	group := r.DB.GetGroupByDevAddr(device.Addr)
 	// Send State
-	if device.GetState(elemNumber).StateType == "onoff" {
+	if true {
 		// Send msg
 		r.Controller.SendMessage(
 			state[0],
-			device.GetElemAddr(elemNumber),
+			address,
 			group.KeyIndex,
 		)
 	}
-	modelState := device.GetState(elemNumber)
+	modelState := device.GetState(0)
 	return &modelState, nil
 }
 
@@ -170,6 +172,15 @@ func (r *queryResolver) AvailableDevices(ctx context.Context) ([]string, error) 
 		uuids = append(uuids, b64)
 	}
 	return uuids, nil
+}
+
+func (r *queryResolver) AvailableGroups(ctx context.Context) ([]*model.Group, error) {
+	groups := r.DB.GetGroups()
+	groupPointers := make([]*model.Group, 0)
+	for _, group := range groups {
+		groupPointers = append(groupPointers, &group)
+	}
+	return groupPointers, nil
 }
 
 func (r *queryResolver) GetState(ctx context.Context, devAddr string, elemNumber int) (*model.State, error) {
