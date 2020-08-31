@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -41,6 +42,7 @@ type ResolverRoot interface {
 	Mutation() MutationResolver
 	Query() QueryResolver
 	State() StateResolver
+	Subscription() SubscriptionResolver
 }
 
 type DirectiveRoot struct {
@@ -65,8 +67,9 @@ type ComplexityRoot struct {
 	}
 
 	Group struct {
-		Addr func(childComplexity int) int
-		Name func(childComplexity int) int
+		Addr     func(childComplexity int) int
+		DevAddrs func(childComplexity int) int
+		Name     func(childComplexity int) int
 	}
 
 	Mutation struct {
@@ -82,12 +85,15 @@ type ComplexityRoot struct {
 	Query struct {
 		AvailableDevices func(childComplexity int) int
 		GetState         func(childComplexity int, devAddr string, elemNumber int) int
-		ListControl      func(childComplexity int) int
 	}
 
 	State struct {
 		State     func(childComplexity int) int
 		StateType func(childComplexity int) int
+	}
+
+	Subscription struct {
+		ListControl func(childComplexity int) int
 	}
 }
 
@@ -99,6 +105,8 @@ type ElementResolver interface {
 }
 type GroupResolver interface {
 	Addr(ctx context.Context, obj *model.Group) (string, error)
+
+	DevAddrs(ctx context.Context, obj *model.Group) ([]string, error)
 }
 type MutationResolver interface {
 	AddDevice(ctx context.Context, addr string, devUUID string, name string) (*model.Device, error)
@@ -112,10 +120,12 @@ type MutationResolver interface {
 type QueryResolver interface {
 	AvailableDevices(ctx context.Context) ([]string, error)
 	GetState(ctx context.Context, devAddr string, elemNumber int) (*model.State, error)
-	ListControl(ctx context.Context) (*model.ControlResponse, error)
 }
 type StateResolver interface {
 	State(ctx context.Context, obj *model.State) (string, error)
+}
+type SubscriptionResolver interface {
+	ListControl(ctx context.Context) (<-chan *model.ControlResponse, error)
 }
 
 type executableSchema struct {
@@ -195,6 +205,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Group.Addr(childComplexity), true
+
+	case "Group.devAddrs":
+		if e.complexity.Group.DevAddrs == nil {
+			break
+		}
+
+		return e.complexity.Group.DevAddrs(childComplexity), true
 
 	case "Group.name":
 		if e.complexity.Group.Name == nil {
@@ -296,13 +313,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.GetState(childComplexity, args["devAddr"].(string), args["elemNumber"].(int)), true
 
-	case "Query.listControl":
-		if e.complexity.Query.ListControl == nil {
-			break
-		}
-
-		return e.complexity.Query.ListControl(childComplexity), true
-
 	case "State.state":
 		if e.complexity.State.State == nil {
 			break
@@ -316,6 +326,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.State.StateType(childComplexity), true
+
+	case "Subscription.listControl":
+		if e.complexity.Subscription.ListControl == nil {
+			break
+		}
+
+		return e.complexity.Subscription.ListControl(childComplexity), true
 
 	}
 	return 0, false
@@ -349,6 +366,23 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 			first = false
 			data := ec._Mutation(ctx, rc.Operation.SelectionSet)
 			var buf bytes.Buffer
+			data.MarshalGQL(&buf)
+
+			return &graphql.Response{
+				Data: buf.Bytes(),
+			}
+		}
+	case ast.Subscription:
+		next := ec._Subscription(ctx, rc.Operation.SelectionSet)
+
+		var buf bytes.Buffer
+		return func(ctx context.Context) *graphql.Response {
+			buf.Reset()
+			data := next()
+
+			if data == nil {
+				return nil
+			}
 			data.MarshalGQL(&buf)
 
 			return &graphql.Response{
@@ -396,6 +430,7 @@ type Element {
 type Group {
   addr: String!
   name: String!
+  devAddrs: [String!]!
 }
 
 type Mutation {
@@ -416,13 +451,12 @@ type ControlResponse {
 type Query {
   availableDevices: [String!]!
   getState(devAddr: String!, elemNumber: Int!): State!
-  listControl: ControlResponse!
+  # listControl: ControlResponse!
 }
 
-# type Subscription {
-#   listControl: ControlResponse!
-  
-# }
+type Subscription {
+  listControl: ControlResponse!
+}
 
 type State {
   state: String!
@@ -969,6 +1003,40 @@ func (ec *executionContext) _Group_name(ctx context.Context, field graphql.Colle
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Group_devAddrs(ctx context.Context, field graphql.CollectedField, obj *model.Group) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Group",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Group().DevAddrs(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Mutation_addDevice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1317,40 +1385,6 @@ func (ec *executionContext) _Query_getState(ctx context.Context, field graphql.C
 	return ec.marshalNState2ᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐState(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Query_listControl(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:   "Query",
-		Field:    field,
-		Args:     nil,
-		IsMethod: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().ListControl(rctx)
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.ControlResponse)
-	fc.Result = res
-	return ec.marshalNControlResponse2ᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐControlResponse(ctx, field.Selections, res)
-}
-
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1486,6 +1520,50 @@ func (ec *executionContext) _State_stateType(ctx context.Context, field graphql.
 	res := resTmp.(string)
 	fc.Result = res
 	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Subscription_listControl(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Subscription",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().ListControl(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func() graphql.Marshaler {
+		res, ok := <-resTmp.(<-chan *model.ControlResponse)
+		if !ok {
+			return nil
+		}
+		return graphql.WriterFunc(func(w io.Writer) {
+			w.Write([]byte{'{'})
+			graphql.MarshalString(field.Alias).MarshalGQL(w)
+			w.Write([]byte{':'})
+			ec.marshalNControlResponse2ᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐControlResponse(ctx, field.Selections, res).MarshalGQL(w)
+			w.Write([]byte{'}'})
+		})
+	}
 }
 
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
@@ -2705,6 +2783,20 @@ func (ec *executionContext) _Group(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&invalids, 1)
 			}
+		case "devAddrs":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Group_devAddrs(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -2820,20 +2912,6 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				}
 				return res
 			})
-		case "listControl":
-			field := field
-			out.Concurrently(i, func() (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_listControl(ctx, field)
-				if res == graphql.Null {
-					atomic.AddUint32(&invalids, 1)
-				}
-				return res
-			})
 		case "__type":
 			out.Values[i] = ec._Query___type(ctx, field)
 		case "__schema":
@@ -2888,6 +2966,26 @@ func (ec *executionContext) _State(ctx context.Context, sel ast.SelectionSet, ob
 		return graphql.Null
 	}
 	return out
+}
+
+var subscriptionImplementors = []string{"Subscription"}
+
+func (ec *executionContext) _Subscription(ctx context.Context, sel ast.SelectionSet) func() graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, subscriptionImplementors)
+	ctx = graphql.WithFieldContext(ctx, &graphql.FieldContext{
+		Object: "Subscription",
+	})
+	if len(fields) != 1 {
+		ec.Errorf(ctx, "must subscribe to exactly one stream")
+		return nil
+	}
+
+	switch fields[0].Name {
+	case "listControl":
+		return ec._Subscription_listControl(ctx, fields[0])
+	default:
+		panic("unknown field " + strconv.Quote(fields[0].Name))
+	}
 }
 
 var __DirectiveImplementors = []string{"__Directive"}

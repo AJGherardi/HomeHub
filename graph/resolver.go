@@ -11,13 +11,19 @@ import (
 type Resolver struct {
 	DB                 model.DB
 	Controller         mesh.Controller
-	NodeAdded          chan []byte
-	UnprovisionedNodes *[][]byte
 	Mdns               *zeroconf.Server
+	UnprovisionedNodes *[][]byte
+	NodeAdded          chan []byte
 }
 
 // New returns the servers config
-func New(db model.DB, controller mesh.Controller, nodeAdded chan []byte, mdns *zeroconf.Server, unprovisionedNodes *[][]byte) generated.Config {
+func New(
+	db model.DB,
+	controller mesh.Controller,
+	nodeAdded chan []byte,
+	mdns *zeroconf.Server,
+	unprovisionedNodes *[][]byte,
+) generated.Config {
 	c := generated.Config{
 		Resolvers: &Resolver{
 			DB:                 db,

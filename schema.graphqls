@@ -13,6 +13,7 @@ type Element {
 type Group {
   addr: String!
   name: String!
+  devAddrs: [String!]!
 }
 
 type Mutation {
@@ -33,12 +34,12 @@ type ControlResponse {
 type Query {
   availableDevices: [String!]!
   getState(devAddr: String!, elemNumber: Int!): State!
-  listControl: ControlResponse!
+  # listControl: ControlResponse!
 }
 
-# type Subscription {
-#   listControl: ControlResponse!
-# }
+type Subscription {
+  listControl: ControlResponse!
+}
 
 type State {
   state: String!

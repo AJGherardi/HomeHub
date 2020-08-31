@@ -25,6 +25,15 @@ func (r *groupResolver) Addr(ctx context.Context, obj *model.Group) (string, err
 	return utils.EncodeBase64(obj.Addr), nil
 }
 
+func (r *groupResolver) DevAddrs(ctx context.Context, obj *model.Group) ([]string, error) {
+	addrs := make([]string, 0)
+	for _, addr := range obj.GetDevAddrs() {
+		b64 := utils.EncodeBase64(addr)
+		addrs = append(addrs, b64)
+	}
+	return addrs, nil
+}
+
 func (r *mutationResolver) AddDevice(ctx context.Context, addr string, devUUID string, name string) (*model.Device, error) {
 	// Provision device
 	uuid := utils.DecodeBase64(devUUID)
@@ -170,16 +179,34 @@ func (r *queryResolver) GetState(ctx context.Context, devAddr string, elemNumber
 	return &state, nil
 }
 
-func (r *queryResolver) ListControl(ctx context.Context) (*model.ControlResponse, error) {
+func (r *stateResolver) State(ctx context.Context, obj *model.State) (string, error) {
+	return utils.EncodeBase64(obj.State), nil
+}
+
+func (r *subscriptionResolver) ListControl(ctx context.Context) (<-chan *model.ControlResponse, error) {
+	controlChan := make(chan *model.ControlResponse, 1)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+			time.Sleep(250 * time.Millisecond)
+			rsp := model.ControlResponse{
+				Groups:  r.DB.GetGroups(),
+				Devices: r.DB.GetDevices(),
+			}
+			controlChan <- &rsp
+		}
+	}()
+	// Put initial result in chan
 	rsp := model.ControlResponse{
 		Groups:  r.DB.GetGroups(),
 		Devices: r.DB.GetDevices(),
 	}
-	return &rsp, nil
-}
-
-func (r *stateResolver) State(ctx context.Context, obj *model.State) (string, error) {
-	return utils.EncodeBase64(obj.State), nil
+	controlChan <- &rsp
+	return controlChan, nil
 }
 
 // Device returns generated.DeviceResolver implementation.
@@ -200,9 +227,13 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 // State returns generated.StateResolver implementation.
 func (r *Resolver) State() generated.StateResolver { return &stateResolver{r} }
 
+// Subscription returns generated.SubscriptionResolver implementation.
+func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subscriptionResolver{r} }
+
 type deviceResolver struct{ *Resolver }
 type elementResolver struct{ *Resolver }
 type groupResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type stateResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }
