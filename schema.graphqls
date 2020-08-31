@@ -7,7 +7,8 @@ type Device {
 type Element {
   name: String!
   addr: String!
-  state: State!
+  state: String!
+  stateType: String!
 }
 
 type Group {
@@ -23,7 +24,7 @@ type Mutation {
   addGroup(name: String!): Group!
   configHub: String!
   resetHub: Boolean!
-  setState(addr: String!, value: String!): State!
+  setState(addr: String!, value: String!): Boolean!
 }
 
 type ControlResponse {
@@ -34,18 +35,11 @@ type ControlResponse {
 type Query {
   availableDevices: [String!]!
   availableGroups: [Group]
-  getState(devAddr: String!, elemNumber: Int!): State!
 }
 
 type Subscription {
   listControl: ControlResponse!
 }
-
-type State {
-  state: String!
-  stateType: String!
-}
-
 
 schema {
     query: Query

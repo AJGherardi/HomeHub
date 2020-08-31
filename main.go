@@ -46,7 +46,7 @@ func main() {
 		},
 		func(addr []byte, state byte) {
 			device := db.GetDeviceByElemAddr(addr)
-			device.UpdateStateUsingAddr(addr, []byte{state}, db)
+			device.UpdateState(addr, []byte{state}, db)
 		},
 	)
 	// Check if configured

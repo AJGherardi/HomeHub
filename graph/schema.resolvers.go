@@ -21,6 +21,10 @@ func (r *elementResolver) Addr(ctx context.Context, obj *model.Element) (string,
 	return utils.EncodeBase64(obj.Addr), nil
 }
 
+func (r *elementResolver) State(ctx context.Context, obj *model.Element) (string, error) {
+	return utils.EncodeBase64(obj.State), nil
+}
+
 func (r *groupResolver) Addr(ctx context.Context, obj *model.Group) (string, error) {
 	return utils.EncodeBase64(obj.Addr), nil
 }
@@ -146,7 +150,7 @@ func (r *mutationResolver) ResetHub(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (r *mutationResolver) SetState(ctx context.Context, addr string, value string) (*model.State, error) {
+func (r *mutationResolver) SetState(ctx context.Context, addr string, value string) (bool, error) {
 	state := utils.DecodeBase64(value)
 	address := utils.DecodeBase64(addr)
 	device := r.DB.GetDeviceByElemAddr(address)
@@ -161,8 +165,7 @@ func (r *mutationResolver) SetState(ctx context.Context, addr string, value stri
 			group.KeyIndex,
 		)
 	}
-	modelState := device.GetState(0)
-	return &modelState, nil
+	return true, nil
 }
 
 func (r *queryResolver) AvailableDevices(ctx context.Context) ([]string, error) {
@@ -181,17 +184,6 @@ func (r *queryResolver) AvailableGroups(ctx context.Context) ([]*model.Group, er
 		groupPointers = append(groupPointers, &group)
 	}
 	return groupPointers, nil
-}
-
-func (r *queryResolver) GetState(ctx context.Context, devAddr string, elemNumber int) (*model.State, error) {
-	address := utils.DecodeBase64(devAddr)
-	device := r.DB.GetDeviceByAddr(address)
-	state := device.GetState(elemNumber)
-	return &state, nil
-}
-
-func (r *stateResolver) State(ctx context.Context, obj *model.State) (string, error) {
-	return utils.EncodeBase64(obj.State), nil
 }
 
 func (r *subscriptionResolver) ListControl(ctx context.Context) (<-chan *model.ControlResponse, error) {
@@ -235,9 +227,6 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
-// State returns generated.StateResolver implementation.
-func (r *Resolver) State() generated.StateResolver { return &stateResolver{r} }
-
 // Subscription returns generated.SubscriptionResolver implementation.
 func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subscriptionResolver{r} }
 
@@ -246,5 +235,4 @@ type elementResolver struct{ *Resolver }
 type groupResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
-type stateResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }

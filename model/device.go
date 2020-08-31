@@ -29,12 +29,10 @@ func (d *Device) AddElem(name, stateType string, db DB) []byte {
 	if len(d.Elements) == 0 {
 		// Create element with device main addr
 		element := Element{
-			Name: name,
-			Addr: d.Addr,
-			State: State{
-				State:     []byte{0x00},
-				StateType: stateType,
-			},
+			Name:      name,
+			Addr:      d.Addr,
+			State:     []byte{0x00},
+			StateType: stateType,
 		}
 		d.Elements = append(d.Elements, element)
 		return d.Addr
@@ -42,36 +40,28 @@ func (d *Device) AddElem(name, stateType string, db DB) []byte {
 	// If not create element using incremented address
 	addr := utils.IncrementAddr(d.Elements[len(d.Elements)-1].Addr)
 	element := Element{
-		Name: name,
-		Addr: addr,
-		State: State{
-			State:     []byte{0x00},
-			StateType: stateType,
-		},
+		Name:      name,
+		Addr:      addr,
+		State:     []byte{0x00},
+		StateType: stateType,
 	}
 	d.Elements = append(d.Elements, element)
 	db.UpdateDevice(*d)
 	return addr
 }
 
-// UpdateState updates the state of a element
-func (d *Device) UpdateState(index int, state []byte, db DB) {
-	d.Elements[index].State.State = state
-	db.UpdateDevice(*d)
-}
-
-// UpdateStateUsingAddr updates the state of the element with the given address
-func (d *Device) UpdateStateUsingAddr(addr, state []byte, db DB) {
+// UpdateState updates the state of the element with the given address
+func (d *Device) UpdateState(addr, state []byte, db DB) {
 	for i, element := range d.Elements {
 		if reflect.DeepEqual(element.Addr, addr) {
-			d.Elements[i].State.State = state
+			d.Elements[i].State = state
 			db.UpdateDevice(*d)
 		}
 	}
 }
 
 // GetState returns the state of a element
-func (d *Device) GetState(index int) State {
+func (d *Device) GetState(index int) []byte {
 	return d.Elements[index].State
 }
 
@@ -82,13 +72,8 @@ func (d *Device) GetElemAddr(index int) []byte {
 
 // Element holds an elements name, addr and its state
 type Element struct {
-	Name  string
-	Addr  []byte
-	State State
-}
-
-// State has a value and a type
-type State struct {
+	Name      string
+	Addr      []byte
 	State     []byte
 	StateType string
 }
