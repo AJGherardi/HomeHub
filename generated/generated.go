@@ -48,11 +48,6 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
-	ControlResponse struct {
-		Devices func(childComplexity int) int
-		Groups  func(childComplexity int) int
-	}
-
 	Device struct {
 		Addr     func(childComplexity int) int
 		Elements func(childComplexity int) int
@@ -79,6 +74,9 @@ type ComplexityRoot struct {
 		RemoveDevice func(childComplexity int, addr string) int
 		RemoveGroup  func(childComplexity int, addr string) int
 		ResetHub     func(childComplexity int) int
+		SceneDelete  func(childComplexity int, sceneNumber string, addr string) int
+		SceneRecall  func(childComplexity int, sceneNumber string, addr string) int
+		SceneStore   func(childComplexity int, addr string) int
 		SetState     func(childComplexity int, addr string, value string) int
 	}
 
@@ -88,7 +86,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		ListControl func(childComplexity int) int
+		ListGroup func(childComplexity int, addr string) int
 	}
 }
 
@@ -112,13 +110,16 @@ type MutationResolver interface {
 	ConfigHub(ctx context.Context) (string, error)
 	ResetHub(ctx context.Context) (bool, error)
 	SetState(ctx context.Context, addr string, value string) (bool, error)
+	SceneStore(ctx context.Context, addr string) (string, error)
+	SceneRecall(ctx context.Context, sceneNumber string, addr string) (string, error)
+	SceneDelete(ctx context.Context, sceneNumber string, addr string) (string, error)
 }
 type QueryResolver interface {
 	AvailableDevices(ctx context.Context) ([]string, error)
 	AvailableGroups(ctx context.Context) ([]*model.Group, error)
 }
 type SubscriptionResolver interface {
-	ListControl(ctx context.Context) (<-chan *model.ControlResponse, error)
+	ListGroup(ctx context.Context, addr string) (<-chan []*model.Device, error)
 }
 
 type executableSchema struct {
@@ -135,20 +136,6 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	ec := executionContext{nil, e}
 	_ = ec
 	switch typeName + "." + field {
-
-	case "ControlResponse.devices":
-		if e.complexity.ControlResponse.Devices == nil {
-			break
-		}
-
-		return e.complexity.ControlResponse.Devices(childComplexity), true
-
-	case "ControlResponse.groups":
-		if e.complexity.ControlResponse.Groups == nil {
-			break
-		}
-
-		return e.complexity.ControlResponse.Groups(childComplexity), true
 
 	case "Device.addr":
 		if e.complexity.Device.Addr == nil {
@@ -282,6 +269,42 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.ResetHub(childComplexity), true
 
+	case "Mutation.sceneDelete":
+		if e.complexity.Mutation.SceneDelete == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_sceneDelete_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SceneDelete(childComplexity, args["sceneNumber"].(string), args["addr"].(string)), true
+
+	case "Mutation.sceneRecall":
+		if e.complexity.Mutation.SceneRecall == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_sceneRecall_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SceneRecall(childComplexity, args["sceneNumber"].(string), args["addr"].(string)), true
+
+	case "Mutation.sceneStore":
+		if e.complexity.Mutation.SceneStore == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_sceneStore_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SceneStore(childComplexity, args["addr"].(string)), true
+
 	case "Mutation.setState":
 		if e.complexity.Mutation.SetState == nil {
 			break
@@ -308,12 +331,17 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.AvailableGroups(childComplexity), true
 
-	case "Subscription.listControl":
-		if e.complexity.Subscription.ListControl == nil {
+	case "Subscription.listGroup":
+		if e.complexity.Subscription.ListGroup == nil {
 			break
 		}
 
-		return e.complexity.Subscription.ListControl(childComplexity), true
+		args, err := ec.field_Subscription_listGroup_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Subscription.ListGroup(childComplexity, args["addr"].(string)), true
 
 	}
 	return 0, false
@@ -423,11 +451,9 @@ type Mutation {
   configHub: String!
   resetHub: Boolean!
   setState(addr: String!, value: String!): Boolean!
-}
-
-type ControlResponse {
-  devices: [Device!]!
-  groups: [Group!]!
+  sceneStore(addr: String!): String!
+  sceneRecall(sceneNumber: String!, addr: String!): String!
+  sceneDelete(sceneNumber: String!, addr: String!): String!
 }
 
 type Query {
@@ -436,7 +462,7 @@ type Query {
 }
 
 type Subscription {
-  listControl: ControlResponse!
+  listGroup(addr: String!): [Device!]!
 }
 
 schema {
@@ -528,6 +554,69 @@ func (ec *executionContext) field_Mutation_removeGroup_args(ctx context.Context,
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_sceneDelete_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["sceneNumber"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("sceneNumber"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["sceneNumber"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["addr"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("addr"))
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["addr"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_sceneRecall_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["sceneNumber"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("sceneNumber"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["sceneNumber"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["addr"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("addr"))
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["addr"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_sceneStore_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["addr"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("addr"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["addr"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_setState_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -564,6 +653,21 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		}
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_listGroup_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["addr"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("addr"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["addr"] = arg0
 	return args, nil
 }
 
@@ -604,74 +708,6 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 // endregion ************************** directives.gotpl **************************
 
 // region    **************************** field.gotpl *****************************
-
-func (ec *executionContext) _ControlResponse_devices(ctx context.Context, field graphql.CollectedField, obj *model.ControlResponse) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:   "ControlResponse",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Devices, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]model.Device)
-	fc.Result = res
-	return ec.marshalNDevice2ᚕgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐDeviceᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _ControlResponse_groups(ctx context.Context, field graphql.CollectedField, obj *model.ControlResponse) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:   "ControlResponse",
-		Field:    field,
-		Args:     nil,
-		IsMethod: false,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Groups, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]model.Group)
-	fc.Result = res
-	return ec.marshalNGroup2ᚕgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐGroupᚄ(ctx, field.Selections, res)
-}
 
 func (ec *executionContext) _Device_addr(ctx context.Context, field graphql.CollectedField, obj *model.Device) (ret graphql.Marshaler) {
 	defer func() {
@@ -1286,6 +1322,129 @@ func (ec *executionContext) _Mutation_setState(ctx context.Context, field graphq
 	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Mutation_sceneStore(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Mutation",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_sceneStore_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().SceneStore(rctx, args["addr"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_sceneRecall(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Mutation",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_sceneRecall_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().SceneRecall(rctx, args["sceneNumber"].(string), args["addr"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_sceneDelete(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Mutation",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_sceneDelete_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().SceneDelete(rctx, args["sceneNumber"].(string), args["addr"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Query_availableDevices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1420,7 +1579,7 @@ func (ec *executionContext) _Query___schema(ctx context.Context, field graphql.C
 	return ec.marshalO__Schema2ᚖgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐSchema(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Subscription_listControl(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+func (ec *executionContext) _Subscription_listGroup(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -1435,9 +1594,16 @@ func (ec *executionContext) _Subscription_listControl(ctx context.Context, field
 	}
 
 	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Subscription_listGroup_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Subscription().ListControl(rctx)
+		return ec.resolvers.Subscription().ListGroup(rctx, args["addr"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1450,7 +1616,7 @@ func (ec *executionContext) _Subscription_listControl(ctx context.Context, field
 		return nil
 	}
 	return func() graphql.Marshaler {
-		res, ok := <-resTmp.(<-chan *model.ControlResponse)
+		res, ok := <-resTmp.(<-chan []*model.Device)
 		if !ok {
 			return nil
 		}
@@ -1458,7 +1624,7 @@ func (ec *executionContext) _Subscription_listControl(ctx context.Context, field
 			w.Write([]byte{'{'})
 			graphql.MarshalString(field.Alias).MarshalGQL(w)
 			w.Write([]byte{':'})
-			ec.marshalNControlResponse2ᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐControlResponse(ctx, field.Selections, res).MarshalGQL(w)
+			ec.marshalNDevice2ᚕᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐDeviceᚄ(ctx, field.Selections, res).MarshalGQL(w)
 			w.Write([]byte{'}'})
 		})
 	}
@@ -2527,38 +2693,6 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 
 // region    **************************** object.gotpl ****************************
 
-var controlResponseImplementors = []string{"ControlResponse"}
-
-func (ec *executionContext) _ControlResponse(ctx context.Context, sel ast.SelectionSet, obj *model.ControlResponse) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, controlResponseImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	var invalids uint32
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("ControlResponse")
-		case "devices":
-			out.Values[i] = ec._ControlResponse_devices(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
-		case "groups":
-			out.Values[i] = ec._ControlResponse_groups(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch()
-	if invalids > 0 {
-		return graphql.Null
-	}
-	return out
-}
-
 var deviceImplementors = []string{"Device"}
 
 func (ec *executionContext) _Device(ctx context.Context, sel ast.SelectionSet, obj *model.Device) graphql.Marshaler {
@@ -2770,6 +2904,21 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "sceneStore":
+			out.Values[i] = ec._Mutation_sceneStore(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "sceneRecall":
+			out.Values[i] = ec._Mutation_sceneRecall(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "sceneDelete":
+			out.Values[i] = ec._Mutation_sceneDelete(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -2849,8 +2998,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	}
 
 	switch fields[0].Name {
-	case "listControl":
-		return ec._Subscription_listControl(ctx, fields[0])
+	case "listGroup":
+		return ec._Subscription_listGroup(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
@@ -3116,25 +3265,11 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) marshalNControlResponse2githubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐControlResponse(ctx context.Context, sel ast.SelectionSet, v model.ControlResponse) graphql.Marshaler {
-	return ec._ControlResponse(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNControlResponse2ᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐControlResponse(ctx context.Context, sel ast.SelectionSet, v *model.ControlResponse) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	return ec._ControlResponse(ctx, sel, v)
-}
-
 func (ec *executionContext) marshalNDevice2githubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐDevice(ctx context.Context, sel ast.SelectionSet, v model.Device) graphql.Marshaler {
 	return ec._Device(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNDevice2ᚕgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐDeviceᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Device) graphql.Marshaler {
+func (ec *executionContext) marshalNDevice2ᚕᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐDeviceᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Device) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -3158,7 +3293,7 @@ func (ec *executionContext) marshalNDevice2ᚕgithubᚗcomᚋAJGherardiᚋHomeHu
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNDevice2githubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐDevice(ctx, sel, v[i])
+			ret[i] = ec.marshalNDevice2ᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐDevice(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -3224,43 +3359,6 @@ func (ec *executionContext) marshalNElement2ᚕgithubᚗcomᚋAJGherardiᚋHomeH
 
 func (ec *executionContext) marshalNGroup2githubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐGroup(ctx context.Context, sel ast.SelectionSet, v model.Group) graphql.Marshaler {
 	return ec._Group(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNGroup2ᚕgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐGroupᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Group) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNGroup2githubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐGroup(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-	return ret
 }
 
 func (ec *executionContext) marshalNGroup2ᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐGroup(ctx context.Context, sel ast.SelectionSet, v *model.Group) graphql.Marshaler {

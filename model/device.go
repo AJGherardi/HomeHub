@@ -38,7 +38,7 @@ func (d *Device) AddElem(name, stateType string, db DB) []byte {
 		return d.Addr
 	}
 	// If not create element using incremented address
-	addr := utils.IncrementAddr(d.Elements[len(d.Elements)-1].Addr)
+	addr := utils.Increment16(d.Elements[len(d.Elements)-1].Addr)
 	element := Element{
 		Name:      name,
 		Addr:      addr,

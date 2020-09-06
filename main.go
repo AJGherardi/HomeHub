@@ -7,7 +7,6 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
-	"github.com/99designs/gqlgen/graphql/playground"
 	mesh "github.com/AJGherardi/GoMeshController"
 	"github.com/AJGherardi/HomeHub/generated"
 	"github.com/AJGherardi/HomeHub/graph"
@@ -21,6 +20,7 @@ var (
 	mdns               *zeroconf.Server
 	unprovisionedNodes = new([][]byte)
 	nodeAdded          = make(chan []byte)
+	stateChanged       = make(chan []byte)
 	controller         mesh.Controller
 )
 
@@ -44,9 +44,12 @@ func main() {
 		func(addr []byte) {
 			nodeAdded <- addr
 		},
+		// onState
 		func(addr []byte, state byte) {
+			// Update device state
 			device := db.GetDeviceByElemAddr(addr)
 			device.UpdateState(addr, []byte{state}, db)
+			stateChanged <- []byte{state}
 		},
 	)
 	// Check if configured
@@ -57,9 +60,10 @@ func main() {
 	// Serve the schema
 	srv := handler.New(
 		generated.NewExecutableSchema(
-			graph.New(db, controller, nodeAdded, mdns, unprovisionedNodes),
+			graph.New(db, controller, nodeAdded, mdns, unprovisionedNodes, stateChanged),
 		),
 	)
+	srv.AddTransport(transport.POST{})
 	srv.AddTransport(transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
 		Upgrader: websocket.Upgrader{
@@ -69,9 +73,6 @@ func main() {
 		},
 	})
 	srv.Use(extension.Introspection{})
-
-	http.Handle("/", playground.Handler("GraphQL playground", "/graphql"))
-
 	http.Handle("/graphql", srv)
 	http.ListenAndServe(":8080", nil)
 }

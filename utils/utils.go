@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/base64"
 	"encoding/binary"
+	"reflect"
 )
 
 // EncodeBase64 converts bytes to base 64
@@ -16,8 +17,8 @@ func DecodeBase64(input string) []byte {
 	return output
 }
 
-// IncrementAddr increments the given addr
-func IncrementAddr(input []byte) []byte {
+// Increment16 increments the given two byte array
+func Increment16(input []byte) []byte {
 	// Convert to uint16
 	addr := binary.BigEndian.Uint16(input)
 	// Increment
@@ -43,4 +44,14 @@ func IncrementKeyIndex(input []byte) []byte {
 // RemoveDevAddr removes the address at the given index
 func RemoveDevAddr(slice [][]byte, i int) [][]byte {
 	return append(slice[:i], slice[i+1:]...)
+}
+
+// Delete removes the element at the given index
+func Delete(arr interface{}, index int) {
+	vField := reflect.ValueOf(arr)
+	value := vField.Elem()
+	if value.Kind() == reflect.Slice || value.Kind() == reflect.Array {
+		result := reflect.AppendSlice(value.Slice(0, index), value.Slice(index+1, value.Len()))
+		value.Set(result)
+	}
 }

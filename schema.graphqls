@@ -25,11 +25,9 @@ type Mutation {
   configHub: String!
   resetHub: Boolean!
   setState(addr: String!, value: String!): Boolean!
-}
-
-type ControlResponse {
-  devices: [Device!]!
-  groups: [Group!]!
+  sceneStore(addr: String!): String!
+  sceneRecall(sceneNumber: String!, addr: String!): String!
+  sceneDelete(sceneNumber: String!, addr: String!): String!
 }
 
 type Query {
@@ -38,7 +36,7 @@ type Query {
 }
 
 type Subscription {
-  listControl: ControlResponse!
+  listGroup(addr: String!): [Device!]!
 }
 
 schema {

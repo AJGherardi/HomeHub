@@ -1,9 +1,14 @@
 package graph
 
+// This file will be automatically regenerated based on the schema, any resolver implementations
+// will be copied through when generating and any unknown code will be moved to the end.
+
 import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/AJGherardi/HomeHub/generated"
@@ -59,10 +64,10 @@ func (r *mutationResolver) AddDevice(ctx context.Context, addr string, devUUID s
 	if true {
 		// Set type and add elements
 		elemAddr0 := device.AddElem(name+"-0", "onoff", r.DB)
-		r.Controller.ConfigureElem(device.Addr, elemAddr0, group.KeyIndex)
+		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr0, group.KeyIndex)
 		time.Sleep(100 * time.Millisecond)
 		elemAddr1 := device.AddElem(name+"-1", "onoff", r.DB)
-		r.Controller.ConfigureElem(device.Addr, elemAddr1, group.KeyIndex)
+		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr1, group.KeyIndex)
 	}
 	// Add device to group
 	group.AddDevice(device.Addr, r.DB)
@@ -168,6 +173,34 @@ func (r *mutationResolver) SetState(ctx context.Context, addr string, value stri
 	return true, nil
 }
 
+func (r *mutationResolver) SceneStore(ctx context.Context, addr string) (string, error) {
+	address := utils.DecodeBase64(addr)
+	group := r.DB.GetGroupByAddr(address)
+	netData := r.DB.GetNetData()
+	// Get and incrment next scene number
+	sceneNumber := netData.GetNextSceneNumber()
+	netData.IncrementNextSceneNumber(r.DB)
+	// Store scene
+	r.Controller.SendStoreMessage(sceneNumber, address, group.KeyIndex)
+	return utils.EncodeBase64(sceneNumber), nil
+}
+
+func (r *mutationResolver) SceneRecall(ctx context.Context, sceneNumber string, addr string) (string, error) {
+	address := utils.DecodeBase64(addr)
+	sceneNumberBytes := utils.DecodeBase64(sceneNumber)
+	group := r.DB.GetGroupByAddr(address)
+	netData := r.DB.GetNetData()
+	// Get and increment next scene number
+	netData.IncrementNextSceneNumber(r.DB)
+	// Store scene
+	r.Controller.SendRecallMessage(sceneNumberBytes, address, group.KeyIndex)
+	return sceneNumber, nil
+}
+
+func (r *mutationResolver) SceneDelete(ctx context.Context, sceneNumber string, addr string) (string, error) {
+	panic(fmt.Errorf("not implemented"))
+}
+
 func (r *queryResolver) AvailableDevices(ctx context.Context) ([]string, error) {
 	uuids := make([]string, 0)
 	for _, uuid := range *r.UnprovisionedNodes {
@@ -186,30 +219,27 @@ func (r *queryResolver) AvailableGroups(ctx context.Context) ([]*model.Group, er
 	return groupPointers, nil
 }
 
-func (r *subscriptionResolver) ListControl(ctx context.Context) (<-chan *model.ControlResponse, error) {
-	controlChan := make(chan *model.ControlResponse, 1)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-			time.Sleep(250 * time.Millisecond)
-			rsp := model.ControlResponse{
-				Groups:  r.DB.GetGroups(),
-				Devices: r.DB.GetDevices(),
-			}
-			controlChan <- &rsp
-		}
-	}()
+func (r *subscriptionResolver) ListGroup(ctx context.Context, addr string) (<-chan []*model.Device, error) {
+	address := utils.DecodeBase64(addr)
+	groupChan := make(chan []*model.Device, 1)
+	// Add observer
+	r.Observers = append(r.Observers, observer{
+		addr:     address,
+		messages: groupChan,
+		ctx:      ctx,
+	})
 	// Put initial result in chan
-	rsp := model.ControlResponse{
-		Groups:  r.DB.GetGroups(),
-		Devices: r.DB.GetDevices(),
+	group := r.DB.GetGroupByAddr(address)
+	devicePointers := make([]*model.Device, 0)
+	for _, device := range r.DB.GetDevices() {
+		for _, devAddr := range group.DevAddrs {
+			if reflect.DeepEqual(devAddr, device.Addr) {
+				devicePointers = append(devicePointers, &device)
+			}
+		}
 	}
-	controlChan <- &rsp
-	return controlChan, nil
+	groupChan <- devicePointers
+	return groupChan, nil
 }
 
 // Device returns generated.DeviceResolver implementation.

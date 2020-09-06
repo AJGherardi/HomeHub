@@ -14,6 +14,7 @@ func MakeNetData(webKey []byte, db DB) {
 		ID:              primitive.NewObjectID(),
 		NextAppKeyIndex: []byte{0x01, 0x00},
 		NextGroupAddr:   []byte{0xc0, 0x00},
+		NextSceneNumber: []byte{0x00, 0x01},
 		WebKeys:         [][]byte{webKey},
 	}
 	db.InsertNetData(netData)
@@ -24,6 +25,7 @@ type NetData struct {
 	ID              primitive.ObjectID `bson:"_id"`
 	NextAppKeyIndex []byte
 	NextGroupAddr   []byte
+	NextSceneNumber []byte
 	WebKeys         [][]byte
 }
 
@@ -37,15 +39,26 @@ func (n *NetData) GetNextGroupAddr() []byte {
 	return n.NextGroupAddr
 }
 
+// GetNextSceneNumber returns the next scene number
+func (n *NetData) GetNextSceneNumber() []byte {
+	return n.NextSceneNumber
+}
+
 // IncrementNextGroupAddr incrments the next group address
 func (n *NetData) IncrementNextGroupAddr(db DB) {
-	n.NextGroupAddr = utils.IncrementAddr(n.NextGroupAddr)
+	n.NextGroupAddr = utils.Increment16(n.NextGroupAddr)
 	db.UpdateNetData(*n)
 }
 
 // IncrementNextAppKeyIndex incrments the next app key index
 func (n *NetData) IncrementNextAppKeyIndex(db DB) {
-	n.NextAppKeyIndex = utils.IncrementAddr(n.NextAppKeyIndex)
+	n.NextAppKeyIndex = utils.Increment16(n.NextAppKeyIndex)
+	db.UpdateNetData(*n)
+}
+
+// IncrementNextSceneNumber incrments the next app key index
+func (n *NetData) IncrementNextSceneNumber(db DB) {
+	n.NextAppKeyIndex = utils.Increment16(n.NextSceneNumber)
 	db.UpdateNetData(*n)
 }
 
