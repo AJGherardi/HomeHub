@@ -37,6 +37,7 @@ type Query {
 
 type Subscription {
   listGroup(addr: String!): [Device!]!
+  getState(addr: String!): String!
 }
 
 schema {

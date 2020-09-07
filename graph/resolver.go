@@ -2,7 +2,6 @@ package graph
 
 import (
 	"context"
-	"reflect"
 
 	mesh "github.com/AJGherardi/GoMeshController"
 	"github.com/AJGherardi/HomeHub/generated"
@@ -13,7 +12,7 @@ import (
 
 type observer struct {
 	addr     []byte
-	messages chan []*model.Device
+	messages chan string
 	ctx      context.Context
 }
 
@@ -64,16 +63,9 @@ func New(
 					continue
 				default:
 				}
-				group := resolver.DB.GetGroupByAddr(observer.addr)
-				devicePointers := make([]*model.Device, 0)
-				for _, device := range resolver.DB.GetDevices() {
-					for _, devAddr := range group.DevAddrs {
-						if reflect.DeepEqual(devAddr, device.Addr) {
-							devicePointers = append(devicePointers, &device)
-						}
-					}
-				}
-				observer.messages <- devicePointers
+				device := resolver.DB.GetDeviceByElemAddr(observer.addr)
+				state := device.GetState(observer.addr)
+				observer.messages <- utils.EncodeBase64(state)
 			}
 		}
 	}()

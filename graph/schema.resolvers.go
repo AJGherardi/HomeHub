@@ -1,8 +1,5 @@
 package graph
 
-// This file will be automatically regenerated based on the schema, any resolver implementations
-// will be copied through when generating and any unknown code will be moved to the end.
-
 import (
 	"context"
 	"crypto/rand"
@@ -213,8 +210,8 @@ func (r *queryResolver) AvailableDevices(ctx context.Context) ([]string, error) 
 func (r *queryResolver) AvailableGroups(ctx context.Context) ([]*model.Group, error) {
 	groups := r.DB.GetGroups()
 	groupPointers := make([]*model.Group, 0)
-	for _, group := range groups {
-		groupPointers = append(groupPointers, &group)
+	for i := range groups {
+		groupPointers = append(groupPointers, &groups[i])
 	}
 	return groupPointers, nil
 }
@@ -222,24 +219,33 @@ func (r *queryResolver) AvailableGroups(ctx context.Context) ([]*model.Group, er
 func (r *subscriptionResolver) ListGroup(ctx context.Context, addr string) (<-chan []*model.Device, error) {
 	address := utils.DecodeBase64(addr)
 	groupChan := make(chan []*model.Device, 1)
-	// Add observer
-	r.Observers = append(r.Observers, observer{
-		addr:     address,
-		messages: groupChan,
-		ctx:      ctx,
-	})
 	// Put initial result in chan
 	group := r.DB.GetGroupByAddr(address)
 	devicePointers := make([]*model.Device, 0)
-	for _, device := range r.DB.GetDevices() {
+	devices := r.DB.GetDevices()
+	for i, device := range devices {
 		for _, devAddr := range group.DevAddrs {
 			if reflect.DeepEqual(devAddr, device.Addr) {
-				devicePointers = append(devicePointers, &device)
+				devicePointers = append(devicePointers, &devices[i])
 			}
 		}
 	}
 	groupChan <- devicePointers
 	return groupChan, nil
+}
+
+func (r *subscriptionResolver) GetState(ctx context.Context, addr string) (<-chan string, error) {
+	address := utils.DecodeBase64(addr)
+	stateChan := make(chan string, 1)
+	r.Observers = append(r.Observers, observer{
+		addr:     address,
+		messages: stateChan,
+		ctx:      ctx,
+	})
+	device := r.DB.GetDeviceByElemAddr(address)
+	state := device.GetState(address)
+	stateChan <- utils.EncodeBase64(state)
+	return stateChan, nil
 }
 
 // Device returns generated.DeviceResolver implementation.

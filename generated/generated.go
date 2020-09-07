@@ -86,6 +86,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
+		GetState  func(childComplexity int, addr string) int
 		ListGroup func(childComplexity int, addr string) int
 	}
 }
@@ -120,6 +121,7 @@ type QueryResolver interface {
 }
 type SubscriptionResolver interface {
 	ListGroup(ctx context.Context, addr string) (<-chan []*model.Device, error)
+	GetState(ctx context.Context, addr string) (<-chan string, error)
 }
 
 type executableSchema struct {
@@ -331,6 +333,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.AvailableGroups(childComplexity), true
 
+	case "Subscription.getState":
+		if e.complexity.Subscription.GetState == nil {
+			break
+		}
+
+		args, err := ec.field_Subscription_getState_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Subscription.GetState(childComplexity, args["addr"].(string)), true
+
 	case "Subscription.listGroup":
 		if e.complexity.Subscription.ListGroup == nil {
 			break
@@ -463,6 +477,7 @@ type Query {
 
 type Subscription {
   listGroup(addr: String!): [Device!]!
+  getState(addr: String!): String!
 }
 
 schema {
@@ -653,6 +668,21 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		}
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_getState_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["addr"]; ok {
+		ctx := graphql.WithFieldInputContext(ctx, graphql.NewFieldInputWithField("addr"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["addr"] = arg0
 	return args, nil
 }
 
@@ -1625,6 +1655,57 @@ func (ec *executionContext) _Subscription_listGroup(ctx context.Context, field g
 			graphql.MarshalString(field.Alias).MarshalGQL(w)
 			w.Write([]byte{':'})
 			ec.marshalNDevice2ᚕᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐDeviceᚄ(ctx, field.Selections, res).MarshalGQL(w)
+			w.Write([]byte{'}'})
+		})
+	}
+}
+
+func (ec *executionContext) _Subscription_getState(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:   "Subscription",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Subscription_getState_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().GetState(rctx, args["addr"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func() graphql.Marshaler {
+		res, ok := <-resTmp.(<-chan string)
+		if !ok {
+			return nil
+		}
+		return graphql.WriterFunc(func(w io.Writer) {
+			w.Write([]byte{'{'})
+			graphql.MarshalString(field.Alias).MarshalGQL(w)
+			w.Write([]byte{':'})
+			ec.marshalNString2string(ctx, field.Selections, res).MarshalGQL(w)
 			w.Write([]byte{'}'})
 		})
 	}
@@ -3000,6 +3081,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	switch fields[0].Name {
 	case "listGroup":
 		return ec._Subscription_listGroup(ctx, fields[0])
+	case "getState":
+		return ec._Subscription_getState(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}

@@ -61,8 +61,13 @@ func (d *Device) UpdateState(addr, state []byte, db DB) {
 }
 
 // GetState returns the state of a element
-func (d *Device) GetState(index int) []byte {
-	return d.Elements[index].State
+func (d *Device) GetState(addr []byte) []byte {
+	for i, element := range d.Elements {
+		if reflect.DeepEqual(element.Addr, addr) {
+			return d.Elements[i].State
+		}
+	}
+	return nil
 }
 
 // GetElemAddr returns the address of a element
