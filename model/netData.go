@@ -58,7 +58,7 @@ func (n *NetData) IncrementNextAppKeyIndex(db DB) {
 
 // IncrementNextSceneNumber incrments the next app key index
 func (n *NetData) IncrementNextSceneNumber(db DB) {
-	n.NextAppKeyIndex = utils.Increment16(n.NextSceneNumber)
+	n.NextSceneNumber = utils.Increment16(n.NextSceneNumber)
 	db.UpdateNetData(*n)
 }
 

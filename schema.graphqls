@@ -14,7 +14,13 @@ type Element {
 type Group {
   addr: String!
   name: String!
+  scenes: [Scene]!
   devAddrs: [String!]!
+}
+
+type Scene {
+  name: String!
+  number: String!
 }
 
 type Mutation {
@@ -25,7 +31,7 @@ type Mutation {
   configHub: String!
   resetHub: Boolean!
   setState(addr: String!, value: String!): Boolean!
-  sceneStore(addr: String!): String!
+  sceneStore(name: String! ,addr: String!): String!
   sceneRecall(sceneNumber: String!, addr: String!): String!
   sceneDelete(sceneNumber: String!, addr: String!): String!
 }
@@ -36,8 +42,13 @@ type Query {
 }
 
 type Subscription {
-  listGroup(addr: String!): [Device!]!
+  listGroup(addr: String!): ListGroupResponse
   getState(addr: String!): String!
+}
+
+type ListGroupResponse {
+  devices: [Device!]!
+  scenes: [Scene!]!
 }
 
 schema {

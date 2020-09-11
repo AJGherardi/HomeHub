@@ -66,6 +66,7 @@ func (db *DB) UpdateNetData(data NetData) {
 			"nextappkeyindex": data.NextAppKeyIndex,
 			"nextgroupaddr":   data.NextGroupAddr,
 			"webkeys":         data.WebKeys,
+			"nextscenenumber": data.NextSceneNumber,
 		}},
 	)
 }
@@ -124,6 +125,7 @@ func (db *DB) UpdateGroup(group Group) {
 			"keyIndex": group.KeyIndex,
 			"name":     group.Name,
 			"devaddrs": group.DevAddrs,
+			"scenes":   group.Scenes,
 		}},
 	)
 }

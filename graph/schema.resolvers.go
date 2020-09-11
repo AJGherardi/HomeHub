@@ -4,14 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"fmt"
+	"os"
 	"reflect"
 	"time"
 
 	"github.com/AJGherardi/HomeHub/generated"
 	"github.com/AJGherardi/HomeHub/model"
 	"github.com/AJGherardi/HomeHub/utils"
-	"github.com/grandcat/zeroconf"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -141,14 +140,22 @@ func (r *mutationResolver) ResetHub(ctx context.Context) (bool, error) {
 	if r.DB.GetNetData().ID == primitive.NilObjectID {
 		return false, errors.New("not configured")
 	}
+	// Remove all devices
+	devices := r.DB.GetDevices()
+	for _, device := range devices {
+		// Send reset payload
+		r.Controller.ResetNode(device.Addr)
+	}
 	// Clean house
 	r.DB.DeleteAll()
 	// Reset mesh controller
 	r.Controller.Reset()
 	time.Sleep(time.Second)
 	r.Controller.Reboot()
-	// Start Mdns
-	r.Mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		os.Exit(0)
+	}()
 	return true, nil
 }
 
@@ -170,7 +177,7 @@ func (r *mutationResolver) SetState(ctx context.Context, addr string, value stri
 	return true, nil
 }
 
-func (r *mutationResolver) SceneStore(ctx context.Context, addr string) (string, error) {
+func (r *mutationResolver) SceneStore(ctx context.Context, name string, addr string) (string, error) {
 	address := utils.DecodeBase64(addr)
 	group := r.DB.GetGroupByAddr(address)
 	netData := r.DB.GetNetData()
@@ -178,6 +185,7 @@ func (r *mutationResolver) SceneStore(ctx context.Context, addr string) (string,
 	sceneNumber := netData.GetNextSceneNumber()
 	netData.IncrementNextSceneNumber(r.DB)
 	// Store scene
+	group.AddScene(name, sceneNumber, r.DB)
 	r.Controller.SendStoreMessage(sceneNumber, address, group.KeyIndex)
 	return utils.EncodeBase64(sceneNumber), nil
 }
@@ -186,16 +194,17 @@ func (r *mutationResolver) SceneRecall(ctx context.Context, sceneNumber string, 
 	address := utils.DecodeBase64(addr)
 	sceneNumberBytes := utils.DecodeBase64(sceneNumber)
 	group := r.DB.GetGroupByAddr(address)
-	netData := r.DB.GetNetData()
-	// Get and increment next scene number
-	netData.IncrementNextSceneNumber(r.DB)
-	// Store scene
 	r.Controller.SendRecallMessage(sceneNumberBytes, address, group.KeyIndex)
 	return sceneNumber, nil
 }
 
 func (r *mutationResolver) SceneDelete(ctx context.Context, sceneNumber string, addr string) (string, error) {
-	panic(fmt.Errorf("not implemented"))
+	address := utils.DecodeBase64(addr)
+	sceneNumberBytes := utils.DecodeBase64(sceneNumber)
+	group := r.DB.GetGroupByAddr(address)
+	group.DeleteScene(sceneNumberBytes, r.DB)
+	r.Controller.SendDeleteMessage(sceneNumberBytes, address, group.KeyIndex)
+	return utils.EncodeBase64(sceneNumberBytes), nil
 }
 
 func (r *queryResolver) AvailableDevices(ctx context.Context) ([]string, error) {
@@ -216,11 +225,16 @@ func (r *queryResolver) AvailableGroups(ctx context.Context) ([]*model.Group, er
 	return groupPointers, nil
 }
 
-func (r *subscriptionResolver) ListGroup(ctx context.Context, addr string) (<-chan []*model.Device, error) {
+func (r *sceneResolver) Number(ctx context.Context, obj *model.Scene) (string, error) {
+	return utils.EncodeBase64(obj.Number), nil
+}
+
+func (r *subscriptionResolver) ListGroup(ctx context.Context, addr string) (<-chan *generated.ListGroupResponse, error) {
 	address := utils.DecodeBase64(addr)
-	groupChan := make(chan []*model.Device, 1)
+	groupChan := make(chan *generated.ListGroupResponse, 1)
 	// Put initial result in chan
 	group := r.DB.GetGroupByAddr(address)
+	// Get device pointers
 	devicePointers := make([]*model.Device, 0)
 	devices := r.DB.GetDevices()
 	for i, device := range devices {
@@ -230,7 +244,16 @@ func (r *subscriptionResolver) ListGroup(ctx context.Context, addr string) (<-ch
 			}
 		}
 	}
-	groupChan <- devicePointers
+	// Get scene pointers
+	scenePointers := make([]*model.Scene, 0)
+	scenes := group.GetScenes()
+	for i := range scenes {
+		scenePointers = append(scenePointers, &scenes[i])
+	}
+	groupChan <- &generated.ListGroupResponse{
+		Devices: devicePointers,
+		Scenes:  scenePointers,
+	}
 	return groupChan, nil
 }
 
@@ -263,6 +286,9 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// Scene returns generated.SceneResolver implementation.
+func (r *Resolver) Scene() generated.SceneResolver { return &sceneResolver{r} }
+
 // Subscription returns generated.SubscriptionResolver implementation.
 func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subscriptionResolver{r} }
 
@@ -271,4 +297,5 @@ type elementResolver struct{ *Resolver }
 type groupResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type sceneResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }

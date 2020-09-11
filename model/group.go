@@ -23,6 +23,7 @@ type Group struct {
 	KeyIndex []byte
 	Addr     []byte
 	DevAddrs [][]byte
+	Scenes   []Scene
 }
 
 // AddDevice adds a device to the group
@@ -46,7 +47,29 @@ func (g *Group) GetDevAddrs() [][]byte {
 	return g.DevAddrs
 }
 
-// GetKeyIndex returns the app key index
-func (g *Group) GetKeyIndex() []byte {
-	return g.KeyIndex
+// GetScenes returns the all the scenes in a group
+func (g *Group) GetScenes() []Scene {
+	return g.Scenes
+}
+
+// AddScene adds a scene to a the group
+func (g *Group) AddScene(name string, number []byte, db DB) {
+	g.Scenes = append(g.Scenes, Scene{Name: name, Number: number})
+	db.UpdateGroup(*g)
+}
+
+// DeleteScene removes a scene from the group
+func (g *Group) DeleteScene(number []byte, db DB) {
+	for i, scene := range g.Scenes {
+		if reflect.DeepEqual(number, scene.Number) {
+			utils.Delete(&g.Scenes, i)
+		}
+	}
+	db.UpdateGroup(*g)
+}
+
+// Scene holds the scenes name and number
+type Scene struct {
+	Name   string
+	Number []byte
 }
