@@ -34,7 +34,7 @@ func New(
 	mdns *zeroconf.Server,
 	unprovisionedNodes *[][]byte,
 	stateChanged chan []byte,
-) generated.Config {
+) (generated.Config, func()) {
 	// Make resolver
 	resolver := Resolver{
 		DB:                 db,
@@ -49,25 +49,20 @@ func New(
 		Resolvers: &resolver,
 	}
 	// Start updater function
-	go func() {
-		for {
-			// Wait for state changed
-			<-stateChanged
-			// Update observers
-			for i, observer := range resolver.Observers {
-				// Check if observer is closed
-				select {
-				case <-observer.ctx.Done():
-					// If so remove observer and continue
-					utils.Delete(&resolver.Observers, i)
-					continue
-				default:
-				}
-				device := resolver.DB.GetDeviceByElemAddr(observer.addr)
-				state := device.GetState(observer.addr)
-				observer.messages <- utils.EncodeBase64(state)
+	return c, func() {
+		// Update observers
+		for i, observer := range resolver.Observers {
+			// Check if observer is closed
+			select {
+			case <-observer.ctx.Done():
+				// If so remove observer and continue
+				utils.Delete(&resolver.Observers, i)
+				continue
+			default:
 			}
+			device := resolver.DB.GetDeviceByElemAddr(observer.addr)
+			state := device.GetState(observer.addr)
+			observer.messages <- utils.EncodeBase64(state)
 		}
-	}()
-	return c
+	}
 }
