@@ -63,7 +63,6 @@ func (db *DB) UpdateNetData(data NetData) {
 		context.TODO(),
 		bson.M{"_id": data.ID},
 		bson.M{"$set": bson.M{
-			"nextappkeyindex": data.NextAppKeyIndex,
 			"nextgroupaddr":   data.NextGroupAddr,
 			"webkeys":         data.WebKeys,
 			"nextscenenumber": data.NextSceneNumber,

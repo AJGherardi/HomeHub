@@ -20,24 +20,12 @@ func DecodeBase64(input string) []byte {
 // Increment16 increments the given two byte array
 func Increment16(input []byte) []byte {
 	// Convert to uint16
-	addr := binary.BigEndian.Uint16(input)
+	addr := binary.LittleEndian.Uint16(input)
 	// Increment
 	addr++
 	// Convert back to byte slice
 	output := make([]byte, 2)
-	binary.BigEndian.PutUint16(output, addr)
-	return output
-}
-
-// IncrementKeyIndex increments the given key index
-func IncrementKeyIndex(input []byte) []byte {
-	// Convert to uint16
-	index := binary.LittleEndian.Uint16(input)
-	// Increment
-	index++
-	// Convert back to byte slice
-	output := make([]byte, 2)
-	binary.LittleEndian.PutUint16(output, index)
+	binary.LittleEndian.PutUint16(output, addr)
 	return output
 }
 

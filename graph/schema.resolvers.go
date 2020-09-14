@@ -104,15 +104,11 @@ func (r *mutationResolver) RemoveGroup(ctx context.Context, addr string) (*model
 func (r *mutationResolver) AddGroup(ctx context.Context, name string) (*model.Group, error) {
 	netData := r.DB.GetNetData()
 	// Get net values
-	keyIndex := netData.GetNextAppKeyIndex()
 	groupAddr := netData.GetNextGroupAddr()
-	// Add an app key
-	r.Controller.AddKey(keyIndex)
 	// Add a group
-	group := model.MakeGroup(name, groupAddr, keyIndex, r.DB)
+	group := model.MakeGroup(name, groupAddr, []byte{0x00, 0x00}, r.DB)
 	// Update net data
 	netData.IncrementNextGroupAddr(r.DB)
-	netData.IncrementNextAppKeyIndex(r.DB)
 	return &group, nil
 }
 
@@ -132,6 +128,9 @@ func (r *mutationResolver) ConfigHub(ctx context.Context) (string, error) {
 	model.MakeNetData(webKey, r.DB)
 	// Setup controller
 	r.Controller.Setup()
+	time.Sleep(100 * time.Millisecond)
+	// Add an app key
+	r.Controller.AddKey([]byte{0x00, 0x00})
 	return utils.EncodeBase64(webKey), nil
 }
 
