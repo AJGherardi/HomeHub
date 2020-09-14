@@ -12,8 +12,8 @@ import (
 func MakeNetData(webKey []byte, db DB) {
 	netData := NetData{
 		ID:              primitive.NewObjectID(),
-		NextGroupAddr:   []byte{0xc0, 0x00},
-		NextSceneNumber: []byte{0x00, 0x01},
+		NextGroupAddr:   []byte{0x00, 0xc0},
+		NextSceneNumber: []byte{0x01, 0x00},
 		WebKeys:         [][]byte{webKey},
 	}
 	db.InsertNetData(netData)
