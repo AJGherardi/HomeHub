@@ -7,6 +7,7 @@ require (
 	github.com/AJGherardi/GoMeshController v0.0.0-00010101000000-000000000000
 	github.com/gorilla/websocket v1.4.2
 	github.com/grandcat/zeroconf v1.0.0
+	github.com/vektah/gqlparser v1.3.1
 	github.com/vektah/gqlparser/v2 v2.0.1
 	go.mongodb.org/mongo-driver v1.4.0
 	golang.org/x/net v0.0.0-20200822124328-c89045814202 // indirect
