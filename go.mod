@@ -9,10 +9,10 @@ require (
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/vektah/gqlparser v1.3.1
 	github.com/vektah/gqlparser/v2 v2.0.1
-	go.mongodb.org/mongo-driver v1.4.0
-	golang.org/x/net v0.0.0-20200822124328-c89045814202 // indirect
-	golang.org/x/sys v0.0.0-20200828194041-157a740278f4 // indirect
+	go.mongodb.org/mongo-driver v1.4.1
+	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
+	golang.org/x/sys v0.0.0-20200918174421-af09f7315aff // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
 
-replace github.com/AJGherardi/GoMeshController => /home/alexander/Projects/GoMeshController
+replace github.com/AJGherardi/GoMeshController => /home/alexander/Documents/GoMeshController

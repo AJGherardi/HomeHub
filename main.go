@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/AJGherardi/HomeHub/generated"
 	"github.com/AJGherardi/HomeHub/graph"
 	"github.com/AJGherardi/HomeHub/model"
+	"github.com/AJGherardi/HomeHub/utils"
 	"github.com/gorilla/websocket"
 	"github.com/grandcat/zeroconf"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -72,6 +75,22 @@ func main() {
 			CheckOrigin: func(r *http.Request) bool {
 				return true
 			},
+		},
+		InitFunc: func(ctx context.Context, initPayload transport.InitPayload) (context.Context, error) {
+			netData := db.GetNetData()
+			// If not configured auth is not required
+			if netData.ID == primitive.NilObjectID {
+				return ctx, nil
+			}
+			// Check web key
+			webKey := utils.DecodeBase64(initPayload["webKey"].(string))
+			verify := netData.CheckWebKey(webKey)
+			// If valid continue
+			if verify {
+				return ctx, nil
+			}
+			// Else error
+			return ctx, errors.New("Bad webKey")
 		},
 	})
 	srv.Use(extension.Introspection{})
