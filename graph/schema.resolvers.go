@@ -1,8 +1,5 @@
 package graph
 
-// This file will be automatically regenerated based on the schema, any resolver implementations
-// will be copied through when generating and any unknown code will be moved to the end.
-
 import (
 	"context"
 	"crypto/rand"
@@ -15,6 +12,7 @@ import (
 	"github.com/AJGherardi/HomeHub/generated"
 	"github.com/AJGherardi/HomeHub/model"
 	"github.com/AJGherardi/HomeHub/utils"
+	"github.com/grandcat/zeroconf"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -121,8 +119,9 @@ func (r *mutationResolver) ConfigHub(ctx context.Context) (string, error) {
 	if r.DB.GetNetData().ID != primitive.NilObjectID {
 		return "", errors.New("already configured")
 	}
-	// Stop the mdns server
+	// Switch the mdns server
 	r.Mdns.Shutdown()
+	r.Mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 	// Make a web key
 	webKey := make([]byte, 16)
 	rand.Read(webKey)
@@ -211,6 +210,8 @@ func (r *mutationResolver) SceneDelete(ctx context.Context, sceneNumber string, 
 }
 
 func (r *mutationResolver) AddUser(ctx context.Context) (string, error) {
+	// Remove user pin
+	r.UserPin = 000000
 	// Make a web key
 	webKey := make([]byte, 16)
 	rand.Read(webKey)
