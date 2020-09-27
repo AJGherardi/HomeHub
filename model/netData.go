@@ -37,13 +37,13 @@ func (n *NetData) GetNextSceneNumber() []byte {
 	return n.NextSceneNumber
 }
 
-// IncrementNextGroupAddr incrments the next group address
+// IncrementNextGroupAddr increments the next group address
 func (n *NetData) IncrementNextGroupAddr(db DB) {
 	n.NextGroupAddr = utils.Increment16(n.NextGroupAddr)
 	db.UpdateNetData(*n)
 }
 
-// IncrementNextSceneNumber incrments the next app key index
+// IncrementNextSceneNumber increments the next app key index
 func (n *NetData) IncrementNextSceneNumber(db DB) {
 	n.NextSceneNumber = utils.Increment16(n.NextSceneNumber)
 	db.UpdateNetData(*n)
@@ -58,4 +58,9 @@ func (n *NetData) CheckWebKey(webKey []byte) bool {
 		}
 	}
 	return false
+}
+
+// AddWebKey checks the validity of the given webKey
+func (n *NetData) AddWebKey(webKey []byte) {
+	n.WebKeys = append(n.WebKeys, webKey)
 }

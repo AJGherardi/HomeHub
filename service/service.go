@@ -1,4 +1,4 @@
-package main
+package service
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ import (
 	"github.com/vektah/gqlparser/gqlerror"
 )
 
-// This file containes a cut down and adapted variant of the web socket transport from the gqlgen library
+// This file contains a cut down and adapted variant of the web socket transport from the gqlgen library
 
 // Message types
 const (
@@ -63,6 +63,7 @@ func ConnectAndServe(exec graphql.GraphExecutor) {
 		exec:                  exec,
 		KeepAlivePingInterval: 10 * time.Second,
 	}
+	conn.close(websocket.CloseProtocolError, "decoding error")
 	// Handle initial message
 	if !conn.init() {
 		return
@@ -73,7 +74,7 @@ func ConnectAndServe(exec graphql.GraphExecutor) {
 
 func (c *wsConnection) init() bool {
 	message := c.readOp()
-	// Close on undecodable message
+	// Close on undecidable message
 	if message == nil {
 		c.close(websocket.CloseProtocolError, "decoding error")
 		return false
@@ -103,7 +104,7 @@ func (c *wsConnection) write(msg *operationMessage) {
 	c.mu.Unlock()
 }
 
-// Handels messages and keeps web socket alive
+// Handles messages and keeps web socket alive
 func (c *wsConnection) run() {
 	// Cancel ctx on function exit
 	ctx, cancel := context.WithCancel(c.ctx)
@@ -161,18 +162,18 @@ func (c *wsConnection) keepAlive(ctx context.Context) {
 	}
 }
 
-// Handels a query
+// Handles a query
 func (c *wsConnection) subscribe(start time.Time, message *operationMessage) {
 	// Start trace
 	ctx := graphql.StartOperationTrace(c.ctx)
-	// Decode into raw parms
+	// Decode into raw params
 	var params *graphql.RawParams
 	if err := jsonDecode(bytes.NewReader(message.Payload), &params); err != nil {
 		c.sendError(message.ID, &gqlerror.Error{Message: "invalid json"})
 		c.complete(message.ID)
 		return
 	}
-	// Add read time to parms
+	// Add read time to params
 	params.ReadTime = graphql.TraceTiming{
 		Start: start,
 		End:   graphql.Now(),

@@ -24,6 +24,7 @@ type Resolver struct {
 	UnprovisionedNodes *[][]byte
 	NodeAdded          chan []byte
 	Observers          []observer
+	UserPin            int
 }
 
 // New returns the servers config
@@ -33,8 +34,7 @@ func New(
 	nodeAdded chan []byte,
 	mdns *zeroconf.Server,
 	unprovisionedNodes *[][]byte,
-	stateChanged chan []byte,
-) (generated.Config, func()) {
+) (generated.Config, func(), *Resolver) {
 	// Make resolver
 	resolver := Resolver{
 		DB:                 db,
@@ -43,6 +43,7 @@ func New(
 		Mdns:               mdns,
 		UnprovisionedNodes: unprovisionedNodes,
 		Observers:          make([]observer, 0),
+		UserPin:            000000,
 	}
 	// Make config
 	c := generated.Config{
@@ -64,5 +65,5 @@ func New(
 			state := device.GetState(observer.addr)
 			observer.messages <- utils.EncodeBase64(state)
 		}
-	}
+	}, &resolver
 }

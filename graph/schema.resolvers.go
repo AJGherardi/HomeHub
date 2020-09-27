@@ -1,9 +1,13 @@
 package graph
 
+// This file will be automatically regenerated based on the schema, any resolver implementations
+// will be copied through when generating and any unknown code will be moved to the end.
+
 import (
 	"context"
 	"crypto/rand"
 	"errors"
+	math "math/rand"
 	"os"
 	"reflect"
 	"time"
@@ -180,7 +184,7 @@ func (r *mutationResolver) SceneStore(ctx context.Context, name string, addr str
 	address := utils.DecodeBase64(addr)
 	group := r.DB.GetGroupByAddr(address)
 	netData := r.DB.GetNetData()
-	// Get and incrment next scene number
+	// Get and increment next scene number
 	sceneNumber := netData.GetNextSceneNumber()
 	netData.IncrementNextSceneNumber(r.DB)
 	// Store scene
@@ -206,6 +210,16 @@ func (r *mutationResolver) SceneDelete(ctx context.Context, sceneNumber string, 
 	return utils.EncodeBase64(sceneNumberBytes), nil
 }
 
+func (r *mutationResolver) AddUser(ctx context.Context) (string, error) {
+	// Make a web key
+	webKey := make([]byte, 16)
+	rand.Read(webKey)
+	// Add webKey to netData
+	netData := r.DB.GetNetData()
+	netData.AddWebKey(webKey)
+	return utils.EncodeBase64(webKey), nil
+}
+
 func (r *queryResolver) AvailableDevices(ctx context.Context) ([]string, error) {
 	uuids := make([]string, 0)
 	for _, uuid := range *r.UnprovisionedNodes {
@@ -222,6 +236,13 @@ func (r *queryResolver) AvailableGroups(ctx context.Context) ([]*model.Group, er
 		groupPointers = append(groupPointers, &groups[i])
 	}
 	return groupPointers, nil
+}
+
+func (r *queryResolver) GetUserPin(ctx context.Context) (int, error) {
+	// Generate a 6 digt random number
+	pin := math.Intn(1000000)
+	r.UserPin = pin
+	return r.UserPin, nil
 }
 
 func (r *sceneResolver) Number(ctx context.Context, obj *model.Scene) (string, error) {

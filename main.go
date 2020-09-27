@@ -36,10 +36,12 @@ func main() {
 	// Check if configured
 	if db.GetNetData().ID == primitive.NilObjectID {
 		// Setup the mdns service
+		mdns, _ = zeroconf.Register("unprovisioned", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
+	} else {
 		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 	}
 	// Serve the schema
-	schema, updateState := graph.New(db, controller, nodeAdded, mdns, unprovisionedNodes, stateChanged)
+	schema, updateState, resolver := graph.New(db, controller, nodeAdded, mdns, unprovisionedNodes)
 	srv := handler.New(
 		generated.NewExecutableSchema(
 			schema,
@@ -68,7 +70,7 @@ func main() {
 		},
 	)
 
-	srv.AddTransport(transport.POST{})
+	// srv.AddTransport(transport.POST{})
 	srv.AddTransport(transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
 		Upgrader: websocket.Upgrader{
@@ -81,6 +83,12 @@ func main() {
 			// If not configured auth is not required
 			if netData.ID == primitive.NilObjectID {
 				return ctx, nil
+			}
+			// If pin is available check it
+			if resolver.UserPin != 000000 {
+				if initPayload["pin"].(float64) == float64(resolver.UserPin) {
+					return ctx, nil
+				}
 			}
 			// Check web key
 			webKey := utils.DecodeBase64(initPayload["webKey"].(string))

@@ -34,11 +34,13 @@ type Mutation {
   sceneStore(name: String! ,addr: String!): String!
   sceneRecall(sceneNumber: String!, addr: String!): String!
   sceneDelete(sceneNumber: String!, addr: String!): String!
+  addUser: String!
 }
 
 type Query {
   availableDevices: [String!]!
   availableGroups: [Group]
+  getUserPin: Int!
 }
 
 type Subscription {
