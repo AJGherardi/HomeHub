@@ -35,6 +35,7 @@ func (d *Device) AddElem(name, stateType string, db DB) []byte {
 			StateType: stateType,
 		}
 		d.Elements = append(d.Elements, element)
+		db.UpdateDevice(*d)
 		return d.Addr
 	}
 	// If not create element using incremented address

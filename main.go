@@ -69,8 +69,8 @@ func main() {
 			updateState()
 		},
 	)
-
-	// srv.AddTransport(transport.POST{})
+	srv.AddTransport(transport.POST{})
+	srv.AddTransport(transport.GET{})
 	srv.AddTransport(transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
 		Upgrader: websocket.Upgrader{

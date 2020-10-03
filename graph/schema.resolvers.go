@@ -48,24 +48,42 @@ func (r *mutationResolver) AddDevice(ctx context.Context, addr string, devUUID s
 	// Wait for node added
 	nodeAddr := <-r.NodeAdded
 	// Create device object
-	device := model.MakeDevice(
-		"2PowerSwitch",
-		nodeAddr,
-		r.DB,
-	)
+	device := model.Device{}
+	// If device is a 2 plug outlet
+	if reflect.DeepEqual(uuid[6:8], []byte{0x00, 0x02}) {
+		device = model.MakeDevice(
+			"2Outlet",
+			nodeAddr,
+			r.DB,
+		)
+	}
+	if reflect.DeepEqual(uuid[6:8], []byte{0x00, 0x01}) {
+		device = model.MakeDevice(
+			"Button",
+			nodeAddr,
+			r.DB,
+		)
+	}
 	// Get group
 	groupAddr := utils.DecodeBase64(addr)
 	group := r.DB.GetGroupByAddr(groupAddr)
 	// Configure Device
 	r.Controller.ConfigureNode(device.Addr, group.KeyIndex)
 	time.Sleep(100 * time.Millisecond)
-	if true {
+	// If device is a 2 plug outlet
+	if reflect.DeepEqual(uuid[6:8], []byte{0x00, 0x02}) {
 		// Set type and add elements
 		elemAddr0 := device.AddElem(name+"-0", "onoff", r.DB)
 		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr0, group.KeyIndex)
 		time.Sleep(100 * time.Millisecond)
 		elemAddr1 := device.AddElem(name+"-1", "onoff", r.DB)
 		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr1, group.KeyIndex)
+	}
+	// If device is a button
+	if reflect.DeepEqual(uuid[6:8], []byte{0x00, 0x01}) {
+		// Set type and add elements
+		elemAddr0 := device.AddElem(name+"-0", "event", r.DB)
+		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr0, group.KeyIndex)
 	}
 	// Add device to group
 	group.AddDevice(device.Addr, r.DB)
