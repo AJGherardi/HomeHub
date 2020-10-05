@@ -34,6 +34,7 @@ type Mutation {
   sceneStore(name: String! ,addr: String!): String!
   sceneRecall(sceneNumber: String!, addr: String!): String!
   sceneDelete(sceneNumber: String!, addr: String!): String!
+  eventBind(sceneNumber: String!, groupAddr: String!, elemAddr: String!): String!
   addUser: String!
 }
 
@@ -46,6 +47,7 @@ type Query {
 type Subscription {
   listGroup(addr: String!): ListGroupResponse
   getState(addr: String!): String!
+  getEvents: String!
 }
 
 type ListGroupResponse {

@@ -10,7 +10,12 @@ import (
 	"github.com/grandcat/zeroconf"
 )
 
-type observer struct {
+type eventObserver struct {
+	messages chan string
+	ctx      context.Context
+}
+
+type stateObserver struct {
 	addr     []byte
 	messages chan string
 	ctx      context.Context
@@ -23,7 +28,8 @@ type Resolver struct {
 	Mdns               *zeroconf.Server
 	UnprovisionedNodes *[][]byte
 	NodeAdded          chan []byte
-	Observers          []observer
+	StateObservers     []stateObserver
+	EventObservers     []eventObserver
 	UserPin            int
 }
 
@@ -34,7 +40,7 @@ func New(
 	nodeAdded chan []byte,
 	mdns *zeroconf.Server,
 	unprovisionedNodes *[][]byte,
-) (generated.Config, func(), *Resolver) {
+) (generated.Config, func(), func(addr []byte), *Resolver) {
 	// Make resolver
 	resolver := Resolver{
 		DB:                 db,
@@ -42,7 +48,8 @@ func New(
 		NodeAdded:          nodeAdded,
 		Mdns:               mdns,
 		UnprovisionedNodes: unprovisionedNodes,
-		Observers:          make([]observer, 0),
+		StateObservers:     make([]stateObserver, 0),
+		EventObservers:     make([]eventObserver, 0),
 		UserPin:            000000,
 	}
 	// Make config
@@ -50,20 +57,36 @@ func New(
 		Resolvers: &resolver,
 	}
 	// Start updater function
-	return c, func() {
-		// Update observers
-		for i, observer := range resolver.Observers {
-			// Check if observer is closed
-			select {
-			case <-observer.ctx.Done():
-				// If so remove observer and continue
-				utils.Delete(&resolver.Observers, i)
-				continue
-			default:
+	return c,
+		func() {
+			// Update observers
+			for i, observer := range resolver.StateObservers {
+				// Check if observer is closed
+				select {
+				case <-observer.ctx.Done():
+					// If so remove observer and continue
+					utils.Delete(&resolver.StateObservers, i)
+					continue
+				default:
+				}
+				device := resolver.DB.GetDeviceByElemAddr(observer.addr)
+				state := device.GetState(observer.addr)
+				observer.messages <- utils.EncodeBase64(state)
 			}
-			device := resolver.DB.GetDeviceByElemAddr(observer.addr)
-			state := device.GetState(observer.addr)
-			observer.messages <- utils.EncodeBase64(state)
-		}
-	}, &resolver
+		},
+		func(addr []byte) {
+			// Update observers
+			for i, observer := range resolver.EventObservers {
+				// Check if observer is closed
+				select {
+				case <-observer.ctx.Done():
+					// If so remove observer and continue
+					utils.Delete(&resolver.StateObservers, i)
+					continue
+				default:
+				}
+				observer.messages <- utils.EncodeBase64(addr)
+			}
+		},
+		&resolver
 }

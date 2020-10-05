@@ -227,6 +227,17 @@ func (r *mutationResolver) SceneDelete(ctx context.Context, sceneNumber string, 
 	return utils.EncodeBase64(sceneNumberBytes), nil
 }
 
+func (r *mutationResolver) EventBind(ctx context.Context, sceneNumber string, groupAddr string, elemAddr string) (string, error) {
+	groupAddress := utils.DecodeBase64(groupAddr)
+	elemAddress := utils.DecodeBase64(elemAddr)
+	sceneNumberBytes := utils.DecodeBase64(sceneNumber)
+	group := r.DB.GetGroupByAddr(groupAddress)
+	device := r.DB.GetDeviceByElemAddr(elemAddress)
+	device.UpdateState(elemAddress, sceneNumberBytes, r.DB)
+	r.Controller.SendBindMessage(sceneNumberBytes, elemAddress, group.KeyIndex)
+	return utils.EncodeBase64(sceneNumberBytes), nil
+}
+
 func (r *mutationResolver) AddUser(ctx context.Context) (string, error) {
 	// Remove user pin
 	r.UserPin = 000000
@@ -299,7 +310,7 @@ func (r *subscriptionResolver) ListGroup(ctx context.Context, addr string) (<-ch
 func (r *subscriptionResolver) GetState(ctx context.Context, addr string) (<-chan string, error) {
 	address := utils.DecodeBase64(addr)
 	stateChan := make(chan string, 1)
-	r.Observers = append(r.Observers, observer{
+	r.StateObservers = append(r.StateObservers, stateObserver{
 		addr:     address,
 		messages: stateChan,
 		ctx:      ctx,
@@ -308,6 +319,15 @@ func (r *subscriptionResolver) GetState(ctx context.Context, addr string) (<-cha
 	state := device.GetState(address)
 	stateChan <- utils.EncodeBase64(state)
 	return stateChan, nil
+}
+
+func (r *subscriptionResolver) GetEvents(ctx context.Context) (<-chan string, error) {
+	eventChan := make(chan string, 1)
+	r.EventObservers = append(r.EventObservers, eventObserver{
+		messages: eventChan,
+		ctx:      ctx,
+	})
+	return eventChan, nil
 }
 
 // Device returns generated.DeviceResolver implementation.

@@ -79,6 +79,7 @@ type ComplexityRoot struct {
 		AddGroup     func(childComplexity int, name string) int
 		AddUser      func(childComplexity int) int
 		ConfigHub    func(childComplexity int) int
+		EventBind    func(childComplexity int, sceneNumber string, groupAddr string, elemAddr string) int
 		RemoveDevice func(childComplexity int, addr string) int
 		RemoveGroup  func(childComplexity int, addr string) int
 		ResetHub     func(childComplexity int) int
@@ -100,6 +101,7 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
+		GetEvents func(childComplexity int) int
 		GetState  func(childComplexity int, addr string) int
 		ListGroup func(childComplexity int, addr string) int
 	}
@@ -128,6 +130,7 @@ type MutationResolver interface {
 	SceneStore(ctx context.Context, name string, addr string) (string, error)
 	SceneRecall(ctx context.Context, sceneNumber string, addr string) (string, error)
 	SceneDelete(ctx context.Context, sceneNumber string, addr string) (string, error)
+	EventBind(ctx context.Context, sceneNumber string, groupAddr string, elemAddr string) (string, error)
 	AddUser(ctx context.Context) (string, error)
 }
 type QueryResolver interface {
@@ -141,6 +144,7 @@ type SceneResolver interface {
 type SubscriptionResolver interface {
 	ListGroup(ctx context.Context, addr string) (<-chan *ListGroupResponse, error)
 	GetState(ctx context.Context, addr string) (<-chan string, error)
+	GetEvents(ctx context.Context) (<-chan string, error)
 }
 
 type executableSchema struct {
@@ -287,6 +291,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.ConfigHub(childComplexity), true
 
+	case "Mutation.eventBind":
+		if e.complexity.Mutation.EventBind == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_eventBind_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.EventBind(childComplexity, args["sceneNumber"].(string), args["groupAddr"].(string), args["elemAddr"].(string)), true
+
 	case "Mutation.removeDevice":
 		if e.complexity.Mutation.RemoveDevice == nil {
 			break
@@ -400,6 +416,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Scene.Number(childComplexity), true
+
+	case "Subscription.getEvents":
+		if e.complexity.Subscription.GetEvents == nil {
+			break
+		}
+
+		return e.complexity.Subscription.GetEvents(childComplexity), true
 
 	case "Subscription.getState":
 		if e.complexity.Subscription.GetState == nil {
@@ -542,6 +565,7 @@ type Mutation {
   sceneStore(name: String! ,addr: String!): String!
   sceneRecall(sceneNumber: String!, addr: String!): String!
   sceneDelete(sceneNumber: String!, addr: String!): String!
+  eventBind(sceneNumber: String!, groupAddr: String!, elemAddr: String!): String!
   addUser: String!
 }
 
@@ -554,6 +578,7 @@ type Query {
 type Subscription {
   listGroup(addr: String!): ListGroupResponse
   getState(addr: String!): String!
+  getEvents: String!
 }
 
 type ListGroupResponse {
@@ -617,6 +642,39 @@ func (ec *executionContext) field_Mutation_addGroup_args(ctx context.Context, ra
 		}
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_eventBind_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["sceneNumber"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("sceneNumber"))
+		arg0, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["sceneNumber"] = arg0
+	var arg1 string
+	if tmp, ok := rawArgs["groupAddr"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupAddr"))
+		arg1, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["groupAddr"] = arg1
+	var arg2 string
+	if tmp, ok := rawArgs["elemAddr"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("elemAddr"))
+		arg2, err = ec.unmarshalNString2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["elemAddr"] = arg2
 	return args, nil
 }
 
@@ -1690,6 +1748,48 @@ func (ec *executionContext) _Mutation_sceneDelete(ctx context.Context, field gra
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Mutation_eventBind(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_eventBind_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().EventBind(rctx, args["sceneNumber"].(string), args["groupAddr"].(string), args["elemAddr"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Mutation_addUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2043,6 +2143,51 @@ func (ec *executionContext) _Subscription_getState(ctx context.Context, field gr
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
 		return ec.resolvers.Subscription().GetState(rctx, args["addr"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return nil
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return nil
+	}
+	return func() graphql.Marshaler {
+		res, ok := <-resTmp.(<-chan string)
+		if !ok {
+			return nil
+		}
+		return graphql.WriterFunc(func(w io.Writer) {
+			w.Write([]byte{'{'})
+			graphql.MarshalString(field.Alias).MarshalGQL(w)
+			w.Write([]byte{':'})
+			ec.marshalNString2string(ctx, field.Selections, res).MarshalGQL(w)
+			w.Write([]byte{'}'})
+		})
+	}
+}
+
+func (ec *executionContext) _Subscription_getEvents(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = nil
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Subscription",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Subscription().GetEvents(rctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3427,6 +3572,11 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
+		case "eventBind":
+			out.Values[i] = ec._Mutation_eventBind(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "addUser":
 			out.Values[i] = ec._Mutation_addUser(ctx, field)
 			if out.Values[i] == graphql.Null {
@@ -3570,6 +3720,8 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 		return ec._Subscription_listGroup(ctx, fields[0])
 	case "getState":
 		return ec._Subscription_getState(ctx, fields[0])
+	case "getEvents":
+		return ec._Subscription_getEvents(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}

@@ -41,7 +41,7 @@ func main() {
 		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 	}
 	// Serve the schema
-	schema, updateState, resolver := graph.New(db, controller, nodeAdded, mdns, unprovisionedNodes)
+	schema, updateState, publishEvents, resolver := graph.New(db, controller, nodeAdded, mdns, unprovisionedNodes)
 	srv := handler.New(
 		generated.NewExecutableSchema(
 			schema,
@@ -68,9 +68,11 @@ func main() {
 			device.UpdateState(addr, []byte{state}, db)
 			updateState()
 		},
+		// onEvent
+		func(addr []byte) {
+			publishEvents(addr)
+		},
 	)
-	srv.AddTransport(transport.POST{})
-	srv.AddTransport(transport.GET{})
 	srv.AddTransport(transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
 		Upgrader: websocket.Upgrader{
