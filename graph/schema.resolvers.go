@@ -59,7 +59,7 @@ func (r *mutationResolver) AddDevice(ctx context.Context, addr string, devUUID s
 	}
 	if reflect.DeepEqual(uuid[6:8], []byte{0x00, 0x01}) {
 		device = model.MakeDevice(
-			"Button",
+			"4Button",
 			nodeAddr,
 			r.DB,
 		)
@@ -84,6 +84,15 @@ func (r *mutationResolver) AddDevice(ctx context.Context, addr string, devUUID s
 		// Set type and add elements
 		elemAddr0 := device.AddElem(name+"-0", "event", r.DB)
 		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr0, group.KeyIndex)
+		time.Sleep(1000 * time.Millisecond)
+		elemAddr1 := device.AddElem(name+"-1", "event", r.DB)
+		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr1, group.KeyIndex)
+		time.Sleep(3000 * time.Millisecond)
+		elemAddr2 := device.AddElem(name+"-2", "event", r.DB)
+		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr2, group.KeyIndex)
+		time.Sleep(3000 * time.Millisecond)
+		elemAddr3 := device.AddElem(name+"-3", "event", r.DB)
+		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr3, group.KeyIndex)
 	}
 	// Add device to group
 	group.AddDevice(device.Addr, r.DB)

@@ -60,12 +60,12 @@ func New(
 	return c,
 		func() {
 			// Update observers
-			for i, observer := range resolver.StateObservers {
+			for _, observer := range resolver.StateObservers {
 				// Check if observer is closed
 				select {
 				case <-observer.ctx.Done():
 					// If so remove observer and continue
-					utils.Delete(&resolver.StateObservers, i)
+					// utils.Delete(&resolver.StateObservers, i)
 					continue
 				default:
 				}
