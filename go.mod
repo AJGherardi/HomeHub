@@ -18,5 +18,3 @@ require (
 	golang.org/x/sys v0.0.0-20200918174421-af09f7315aff // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 )
-
-replace github.com/AJGherardi/GoMeshController => /home/alexander/Documents/Projects/GoMeshController
