@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/99designs/gqlgen v0.13.0
-	github.com/AJGherardi/GoMeshController v0.0.0-20200904025254-42f494bce424
+	github.com/AJGherardi/GoMeshController v0.0.0-20201010015000-ebfcd163acf7
 	github.com/agnivade/levenshtein v1.1.0 // indirect
 	github.com/google/gousb v2.1.0+incompatible // indirect
 	github.com/gorilla/websocket v1.4.2
