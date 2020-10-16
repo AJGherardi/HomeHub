@@ -12,6 +12,15 @@ jobs:
         name: Checkout
         uses: actions/checkout@v2
       -
+        name: Prepare
+        id: prep
+        run: |
+          DOCKER_IMAGE=ghcr.io/ajgherardi/hub
+          VERSION=${GITHUB_REF#refs/heads/master/}
+          TAGS="${DOCKER_IMAGE}:${VERSION}"       
+          
+          echo ::set-output name=tags::${TAGS}
+      -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       -
@@ -34,4 +43,4 @@ jobs:
           push: true
           tags: |
             ghcr.io/ajgherardi/hub:latest
-            ghcr.io/ajgherardi/hub:0.0.1
+            ${{ steps.prep.outputs.tags }}
