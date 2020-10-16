@@ -16,7 +16,7 @@ jobs:
         id: prep
         run: |
           DOCKER_IMAGE=ghcr.io/ajgherardi/hub
-          VERSION=$(echo ${GITHUB_REF#refs/heads/} | sed -r 's#/+#-#g')
+          VERSION=$(echo ${GITHUB_REF#refs/heads/master} | sed -r 's#/+#-#g')
           TAGS="${DOCKER_IMAGE}:${VERSION}"       
           
           echo ::set-output name=tags::${TAGS}
