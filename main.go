@@ -2,8 +2,16 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"errors"
+	"log"
+	"math/big"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -35,6 +43,8 @@ func main() {
 	defer controller.Close()
 	// Check if configured
 	if db.GetNetData().ID == primitive.NilObjectID {
+		// Generate a cert
+		writeCert()
 		// Setup the mdns service
 		mdns, _ = zeroconf.Register("unprovisioned", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 	} else {
@@ -107,5 +117,47 @@ func main() {
 	})
 	srv.Use(extension.Introspection{})
 	http.Handle("/graphql", srv)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServeTLS(":2041", "cert.pem", "key.pem", nil)
+}
+
+func writeCert() {
+	// Make private key
+	priv, _ := rsa.GenerateKey(rand.Reader, 2048)
+	// Set key usage
+	keyUsage := x509.KeyUsageDigitalSignature
+	// Set time limits
+	notBefore := time.Now()
+	notAfter := notBefore.Add(365 * 24 * time.Hour)
+	// Make serial number
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
+	// Create cert template
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			Organization: []string{"Home"},
+		},
+		NotBefore: notBefore,
+		NotAfter:  notAfter,
+
+		KeyUsage:              keyUsage,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+	// Set ca to true
+	template.IsCA = true
+	template.KeyUsage |= x509.KeyUsageCertSign
+	// Create the cert
+	derBytes, _ := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	// Write cert to file
+	certOut, _ := os.Create("cert.pem")
+	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	certOut.Close()
+	log.Print("wrote cert.pem\n")
+	// Write key to file
+	keyOut, _ := os.OpenFile("key.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	privBytes, _ := x509.MarshalPKCS8PrivateKey(priv)
+	pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privBytes})
+	keyOut.Close()
+	log.Print("wrote key.pem\n")
 }
