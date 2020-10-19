@@ -88,8 +88,10 @@ func main() {
 			}
 			// If pin is available check it
 			if resolver.UserPin != 000000 {
-				if initPayload["pin"].(float64) == float64(resolver.UserPin) {
-					return ctx, nil
+				if initPayload["pin"] != nil {
+					if initPayload["pin"].(float64) == float64(resolver.UserPin) {
+						return ctx, nil
+					}
 				}
 			}
 			// Check web key
