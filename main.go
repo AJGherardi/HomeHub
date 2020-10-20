@@ -121,7 +121,7 @@ func main() {
 	})
 	srv.Use(extension.Introspection{})
 	http.Handle("/graphql", srv)
-	http.ListenAndServeTLS(":2041", "cert.pem", "key.pem", nil)
+	http.ListenAndServeTLS("", "cert.pem", "key.pem", nil)
 }
 
 func writeCert() {
