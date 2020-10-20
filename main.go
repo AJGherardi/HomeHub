@@ -41,10 +41,14 @@ func main() {
 	// Open Mesh Controller and defer close
 	controller = mesh.Open()
 	defer controller.Close()
+	// Generate a cert
+	if _, err := os.Stat("cert.pem"); err != nil {
+		if os.IsNotExist(err) {
+			writeCert()
+		}
+	}
 	// Check if configured
 	if db.GetNetData().ID == primitive.NilObjectID {
-		// Generate a cert
-		writeCert()
 		// Setup the mdns service
 		mdns, _ = zeroconf.Register("unprovisioned", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 	} else {
