@@ -121,7 +121,7 @@ func main() {
 	})
 	srv.Use(extension.Introspection{})
 	http.Handle("/graphql", srv)
-	http.ListenAndServeTLS("", "cert.pem", "key.pem", nil)
+	http.ListenAndServeTLS("", "/app/cert.pem", "/app/key.pem", nil)
 }
 
 func writeCert() {
@@ -154,12 +154,12 @@ func writeCert() {
 	// Create the cert
 	derBytes, _ := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 	// Write cert to file
-	certOut, _ := os.Create("cert.pem")
+	certOut, _ := os.Create("/app/cert.pem")
 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	certOut.Close()
 	log.Print("wrote cert.pem\n")
 	// Write key to file
-	keyOut, _ := os.OpenFile("key.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	keyOut, _ := os.OpenFile("/app/key.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	privBytes, _ := x509.MarshalPKCS8PrivateKey(priv)
 	pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privBytes})
 	keyOut.Close()
