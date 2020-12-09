@@ -6,7 +6,22 @@ import (
 	"github.com/AJGherardi/HomeHub/model"
 )
 
-type ListGroupResponse struct {
-	Devices []*model.Device `json:"devices"`
-	Scenes  []*model.Scene  `json:"scenes"`
+type DeviceResponse struct {
+	Addr   int           `json:"addr"`
+	Device *model.Device `json:"device"`
+}
+
+type ElementResponse struct {
+	Addr    int            `json:"addr"`
+	Element *model.Element `json:"element"`
+}
+
+type GroupResponse struct {
+	Addr  int          `json:"addr"`
+	Group *model.Group `json:"group"`
+}
+
+type SceneResponse struct {
+	Number int          `json:"number"`
+	Scene  *model.Scene `json:"scene"`
 }

@@ -1,85 +1,56 @@
 package model
 
-import (
-	"reflect"
-
-	"github.com/AJGherardi/HomeHub/utils"
-)
-
 // MakeDevice makes a new device with the given addr
-func MakeDevice(deviceType string, addr []byte, db DB) Device {
-	device := Device{
-		Type: deviceType,
-		Addr: addr,
+func MakeDevice(deviceType string, addr uint16) Device {
+	return Device{
+		Type:     deviceType,
+		Elements: map[uint16]*Element{},
 	}
-	db.InsertDevice(device)
-	return device
 }
 
 // Device holds the name addr and type of device
 type Device struct {
 	Type     string
-	Addr     []byte
-	Elements []Element
+	Elements map[uint16]*Element
 }
 
 // AddElem adds a element to the device
-func (d *Device) AddElem(name, stateType string, db DB) []byte {
+func (d *Device) AddElem(name, stateType string, devAddr uint16) uint16 {
 	// Check if first elem
 	if len(d.Elements) == 0 {
 		// Create element with device main addr
 		element := Element{
 			Name:      name,
-			Addr:      d.Addr,
 			State:     []byte{0x00},
 			StateType: stateType,
 		}
-		d.Elements = append(d.Elements, element)
-		db.UpdateDevice(*d)
-		return d.Addr
+		d.Elements[devAddr] = &element
+		return devAddr
 	}
 	// If not create element using incremented address
-	addr := utils.Increment16(d.Elements[len(d.Elements)-1].Addr)
+	addr := devAddr + uint16(len(d.Elements))
 	element := Element{
 		Name:      name,
-		Addr:      addr,
 		State:     []byte{0x00},
 		StateType: stateType,
 	}
-	d.Elements = append(d.Elements, element)
-	db.UpdateDevice(*d)
+	d.Elements[addr] = &element
 	return addr
 }
 
 // UpdateState updates the state of the element with the given address
-func (d *Device) UpdateState(addr, state []byte, db DB) {
-	for i, element := range d.Elements {
-		if reflect.DeepEqual(element.Addr, addr) {
-			d.Elements[i].State = state
-			db.UpdateDevice(*d)
-		}
-	}
+func (d *Device) UpdateState(addr uint16, state []byte) {
+	d.Elements[addr].State = state
 }
 
 // GetState returns the state of a element
-func (d *Device) GetState(addr []byte) []byte {
-	for i, element := range d.Elements {
-		if reflect.DeepEqual(element.Addr, addr) {
-			return d.Elements[i].State
-		}
-	}
-	return nil
-}
-
-// GetElemAddr returns the address of a element
-func (d *Device) GetElemAddr(index int) []byte {
-	return d.Elements[index].Addr
+func (d *Device) GetState(addr uint16) []byte {
+	return d.Elements[addr].State
 }
 
 // Element holds an elements name, addr and its state
 type Element struct {
 	Name      string
-	Addr      []byte
 	State     []byte
 	StateType string
 }

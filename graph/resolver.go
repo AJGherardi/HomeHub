@@ -11,23 +11,25 @@ import (
 )
 
 type eventObserver struct {
-	messages chan string
+	messages chan int
 	ctx      context.Context
 }
 
 type stateObserver struct {
-	addr     []byte
-	messages chan string
-	ctx      context.Context
+	groupAddr uint16
+	devAddr   uint16
+	elemAddr  uint16
+	messages  chan string
+	ctx       context.Context
 }
 
 // Resolver is the root of the schema
 type Resolver struct {
-	DB                 model.DB
+	Store              *model.Store
 	Controller         mesh.Controller
 	Mdns               *zeroconf.Server
 	UnprovisionedNodes *[][]byte
-	NodeAdded          chan []byte
+	NodeAdded          chan uint16
 	StateObservers     []stateObserver
 	EventObservers     []eventObserver
 	UserPin            int
@@ -35,15 +37,15 @@ type Resolver struct {
 
 // New returns the servers config
 func New(
-	db model.DB,
+	store *model.Store,
 	controller mesh.Controller,
-	nodeAdded chan []byte,
+	nodeAdded chan uint16,
 	mdns *zeroconf.Server,
 	unprovisionedNodes *[][]byte,
-) (generated.Config, func(), func(addr []byte), *Resolver) {
+) (generated.Config, func(), func(addr uint16), *Resolver) {
 	// Make resolver
 	resolver := Resolver{
-		DB:                 db,
+		Store:              store,
 		Controller:         controller,
 		NodeAdded:          nodeAdded,
 		Mdns:               mdns,
@@ -69,12 +71,12 @@ func New(
 					continue
 				default:
 				}
-				device := resolver.DB.GetDeviceByElemAddr(observer.addr)
-				state := device.GetState(observer.addr)
+				device := store.Groups[uint16(observer.groupAddr)].Devices[uint16(observer.devAddr)]
+				state := device.GetState(observer.elemAddr)
 				observer.messages <- utils.EncodeBase64(state)
 			}
 		},
-		func(addr []byte) {
+		func(addr uint16) {
 			// Update observers
 			for i, observer := range resolver.EventObservers {
 				// Check if observer is closed
@@ -85,7 +87,7 @@ func New(
 					continue
 				default:
 				}
-				observer.messages <- utils.EncodeBase64(addr)
+				observer.messages <- int(addr)
 			}
 		},
 		&resolver

@@ -1,8 +1,12 @@
 package graph
 
+// This file will be automatically regenerated based on the schema, any resolver implementations
+// will be copied through when generating and any unknown code will be moved to the end.
+
 import (
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	math "math/rand"
 	"os"
@@ -13,35 +17,46 @@ import (
 	"github.com/AJGherardi/HomeHub/model"
 	"github.com/AJGherardi/HomeHub/utils"
 	"github.com/grandcat/zeroconf"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func (r *deviceResolver) Addr(ctx context.Context, obj *model.Device) (string, error) {
-	return utils.EncodeBase64(obj.Addr), nil
-}
-
-func (r *elementResolver) Addr(ctx context.Context, obj *model.Element) (string, error) {
-	return utils.EncodeBase64(obj.Addr), nil
+func (r *deviceResolver) Elements(ctx context.Context, obj *model.Device) ([]*generated.ElementResponse, error) {
+	elementResponses := []*generated.ElementResponse{}
+	for i := range obj.Elements {
+		elementResponses = append(
+			elementResponses,
+			&generated.ElementResponse{Addr: int(i), Element: obj.Elements[i]},
+		)
+	}
+	return elementResponses, nil
 }
 
 func (r *elementResolver) State(ctx context.Context, obj *model.Element) (string, error) {
 	return utils.EncodeBase64(obj.State), nil
 }
 
-func (r *groupResolver) Addr(ctx context.Context, obj *model.Group) (string, error) {
-	return utils.EncodeBase64(obj.Addr), nil
-}
-
-func (r *groupResolver) DevAddrs(ctx context.Context, obj *model.Group) ([]string, error) {
-	addrs := make([]string, 0)
-	for _, addr := range obj.GetDevAddrs() {
-		b64 := utils.EncodeBase64(addr)
-		addrs = append(addrs, b64)
+func (r *groupResolver) Scenes(ctx context.Context, obj *model.Group) ([]*generated.SceneResponse, error) {
+	sceneResponses := []*generated.SceneResponse{}
+	for i := range obj.Scenes {
+		sceneResponses = append(
+			sceneResponses,
+			&generated.SceneResponse{Number: int(i), Scene: obj.Scenes[i]},
+		)
 	}
-	return addrs, nil
+	return sceneResponses, nil
 }
 
-func (r *mutationResolver) AddDevice(ctx context.Context, addr string, devUUID string, name string) (*model.Device, error) {
+func (r *groupResolver) Devices(ctx context.Context, obj *model.Group) ([]*generated.DeviceResponse, error) {
+	deviceResponses := []*generated.DeviceResponse{}
+	for i := range obj.Devices {
+		deviceResponses = append(
+			deviceResponses,
+			&generated.DeviceResponse{Addr: int(i), Device: obj.Devices[i]},
+		)
+	}
+	return deviceResponses, nil
+}
+
+func (r *mutationResolver) AddDevice(ctx context.Context, addr int, devUUID string, name string) (int, error) {
 	// Provision device
 	uuid := utils.DecodeBase64(devUUID)
 	r.Controller.Provision(uuid)
@@ -54,96 +69,84 @@ func (r *mutationResolver) AddDevice(ctx context.Context, addr string, devUUID s
 		device = model.MakeDevice(
 			"2Outlet",
 			nodeAddr,
-			r.DB,
 		)
 	}
 	if reflect.DeepEqual(uuid[6:8], []byte{0x00, 0x01}) {
 		device = model.MakeDevice(
 			"4Button",
 			nodeAddr,
-			r.DB,
 		)
 	}
 	// Get group
-	groupAddr := utils.DecodeBase64(addr)
-	group := r.DB.GetGroupByAddr(groupAddr)
+	group := r.Store.Groups[uint16(addr)]
 	// Configure Device
-	r.Controller.ConfigureNode(device.Addr, group.KeyIndex)
+	r.Controller.ConfigureNode(nodeAddr, group.KeyIndex)
 	time.Sleep(100 * time.Millisecond)
 	// If device is a 2 plug outlet
 	if reflect.DeepEqual(uuid[6:8], []byte{0x00, 0x02}) {
 		// Set type and add elements
-		elemAddr0 := device.AddElem(name+"-0", "onoff", r.DB)
-		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr0, group.KeyIndex)
+		elemAddr0 := device.AddElem(name+"-0", "onoff", nodeAddr)
+		r.Controller.ConfigureElem(uint16(addr), nodeAddr, elemAddr0, group.KeyIndex)
 		time.Sleep(100 * time.Millisecond)
-		elemAddr1 := device.AddElem(name+"-1", "onoff", r.DB)
-		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr1, group.KeyIndex)
+		elemAddr1 := device.AddElem(name+"-1", "onoff", nodeAddr)
+		r.Controller.ConfigureElem(uint16(addr), nodeAddr, elemAddr1, group.KeyIndex)
 	}
 	// If device is a button
 	if reflect.DeepEqual(uuid[6:8], []byte{0x00, 0x01}) {
 		// Set type and add elements
-		elemAddr0 := device.AddElem(name+"-0", "event", r.DB)
-		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr0, group.KeyIndex)
+		elemAddr0 := device.AddElem(name+"-0", "event", nodeAddr)
+		r.Controller.ConfigureElem(uint16(addr), nodeAddr, elemAddr0, group.KeyIndex)
 		time.Sleep(1000 * time.Millisecond)
-		elemAddr1 := device.AddElem(name+"-1", "event", r.DB)
-		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr1, group.KeyIndex)
+		elemAddr1 := device.AddElem(name+"-1", "event", nodeAddr)
+		r.Controller.ConfigureElem(uint16(addr), nodeAddr, elemAddr1, group.KeyIndex)
 		time.Sleep(3000 * time.Millisecond)
-		elemAddr2 := device.AddElem(name+"-2", "event", r.DB)
-		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr2, group.KeyIndex)
+		elemAddr2 := device.AddElem(name+"-2", "event", nodeAddr)
+		r.Controller.ConfigureElem(uint16(addr), nodeAddr, elemAddr2, group.KeyIndex)
 		time.Sleep(3000 * time.Millisecond)
-		elemAddr3 := device.AddElem(name+"-3", "event", r.DB)
-		r.Controller.ConfigureElem(group.Addr, device.Addr, elemAddr3, group.KeyIndex)
+		elemAddr3 := device.AddElem(name+"-3", "event", nodeAddr)
+		r.Controller.ConfigureElem(uint16(addr), nodeAddr, elemAddr3, group.KeyIndex)
 	}
 	// Add device to group
-	group.AddDevice(device.Addr, r.DB)
-	return &device, nil
+	group.AddDevice(nodeAddr, device)
+	return int(nodeAddr), nil
 }
 
-func (r *mutationResolver) RemoveDevice(ctx context.Context, addr string) (*model.Device, error) {
-	// Get devKey
-	devAddr := utils.DecodeBase64(addr)
-	device := r.DB.GetDeviceByAddr(devAddr)
+func (r *mutationResolver) RemoveDevice(ctx context.Context, addr int, groupAddr int) (int, error) {
+	// Get device
+	group := r.Store.Groups[uint16(groupAddr)]
 	// Send reset payload
-	r.Controller.ResetNode(devAddr)
-	// Remove device from database
-	r.DB.DeleteDevice(devAddr)
-	// Remove devAddr from group
-	group := r.DB.GetGroupByDevAddr(devAddr)
-	group.RemoveDevice(device.Addr, r.DB)
-	return &device, nil
+	r.Controller.ResetNode(uint16(addr))
+	// Remove device from group
+	group.RemoveDevice(uint16(addr))
+	return addr, nil
 }
 
-func (r *mutationResolver) RemoveGroup(ctx context.Context, addr string) (*model.Group, error) {
+func (r *mutationResolver) RemoveGroup(ctx context.Context, addr int) (int, error) {
 	// Get groupAddr
-	groupAddr := utils.DecodeBase64(addr)
-	group := r.DB.GetGroupByAddr(groupAddr)
-	// Delete devices
-	for _, devAddr := range group.GetDevAddrs() {
-		device := r.DB.GetDeviceByAddr(devAddr)
-		// Send reset payload
-		r.Controller.ResetNode(device.Addr)
-		// Remove device from database
-		r.DB.DeleteDevice(devAddr)
+	group := r.Store.Groups[uint16(addr)]
+	// Reset devices
+	for addr := range group.Devices {
+		r.Controller.ResetNode(addr)
 	}
 	// Remove the group
-	r.DB.DeleteGroup(groupAddr)
-	return &group, nil
+	delete(r.Store.Groups, uint16(addr))
+	return addr, nil
 }
 
-func (r *mutationResolver) AddGroup(ctx context.Context, name string) (*model.Group, error) {
-	netData := r.DB.GetNetData()
+func (r *mutationResolver) AddGroup(ctx context.Context, name string) (int, error) {
+	netData := r.Store.NetData
 	// Get net values
 	groupAddr := netData.GetNextGroupAddr()
 	// Add a group
-	group := model.MakeGroup(name, groupAddr, []byte{0x00, 0x00}, r.DB)
+	group := model.MakeGroup(name, groupAddr, 0x0000)
+	r.Store.Groups[groupAddr] = &group
 	// Update net data
-	netData.IncrementNextGroupAddr(r.DB)
-	return &group, nil
+	netData.IncrementNextGroupAddr()
+	return int(groupAddr), nil
 }
 
 func (r *mutationResolver) ConfigHub(ctx context.Context) (string, error) {
-	// Check if configured
-	if r.DB.GetNetData().ID != primitive.NilObjectID {
+	if utils.CheckIfConfigured() {
 		return "", errors.New("already configured")
 	}
 	// Switch the mdns server
@@ -152,31 +155,32 @@ func (r *mutationResolver) ConfigHub(ctx context.Context) (string, error) {
 	// Make a web key
 	webKey := make([]byte, 16)
 	rand.Read(webKey)
-	// Clean house
-	r.DB.DeleteAll()
+	// Start data save threed
+	go SaveStore(r.Store)
 	// Add and get net data
-	model.MakeNetData(webKey, r.DB)
+	netData := model.MakeNetData(webKey)
+	r.Store.NetData = &netData
 	// Setup controller
 	r.Controller.Setup()
 	time.Sleep(100 * time.Millisecond)
 	// Add an app key
-	r.Controller.AddKey([]byte{0x00, 0x00})
+	r.Controller.AddKey(0x0000)
 	return utils.EncodeBase64(webKey), nil
 }
 
 func (r *mutationResolver) ResetHub(ctx context.Context) (bool, error) {
-	// Check if configured
-	if r.DB.GetNetData().ID == primitive.NilObjectID {
+	if !utils.CheckIfConfigured() {
 		return false, errors.New("not configured")
 	}
 	// Remove all devices
-	devices := r.DB.GetDevices()
-	for _, device := range devices {
-		// Send reset payload
-		r.Controller.ResetNode(device.Addr)
+	groups := r.Store.Groups
+	for _, group := range groups {
+		for addr := range group.Devices {
+			// Send reset payload
+			r.Controller.ResetNode(addr)
+		}
 	}
-	// Clean house
-	r.DB.DeleteAll()
+	// TODO: Clean house
 	// Reset mesh controller
 	r.Controller.Reset()
 	time.Sleep(time.Second)
@@ -188,63 +192,55 @@ func (r *mutationResolver) ResetHub(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (r *mutationResolver) SetState(ctx context.Context, addr string, value string) (bool, error) {
+func (r *mutationResolver) SetState(ctx context.Context, groupAddr int, addr int, value string) (bool, error) {
 	state := utils.DecodeBase64(value)
-	address := utils.DecodeBase64(addr)
-	device := r.DB.GetDeviceByElemAddr(address)
 	// Get appKey from group
-	group := r.DB.GetGroupByDevAddr(device.Addr)
+	group := r.Store.Groups[uint16(groupAddr)]
 	// Send State
 	if true {
 		// Send msg
 		r.Controller.SendMessage(
 			state[0],
-			address,
+			uint16(addr),
 			group.KeyIndex,
 		)
 	}
 	return true, nil
 }
 
-func (r *mutationResolver) SceneStore(ctx context.Context, name string, addr string) (string, error) {
-	address := utils.DecodeBase64(addr)
-	group := r.DB.GetGroupByAddr(address)
-	netData := r.DB.GetNetData()
+func (r *mutationResolver) SceneStore(ctx context.Context, name string, addr int) (int, error) {
+	group := r.Store.Groups[uint16(addr)]
+	netData := r.Store.NetData
 	// Get and increment next scene number
 	sceneNumber := netData.GetNextSceneNumber()
-	netData.IncrementNextSceneNumber(r.DB)
+	netData.IncrementNextSceneNumber()
 	// Store scene
-	group.AddScene(name, sceneNumber, r.DB)
-	r.Controller.SendStoreMessage(sceneNumber, address, group.KeyIndex)
-	return utils.EncodeBase64(sceneNumber), nil
+	group.AddScene(name, sceneNumber)
+	r.Controller.SendStoreMessage(sceneNumber, uint16(addr), group.KeyIndex)
+	return int(sceneNumber), nil
 }
 
-func (r *mutationResolver) SceneRecall(ctx context.Context, sceneNumber string, addr string) (string, error) {
-	address := utils.DecodeBase64(addr)
-	sceneNumberBytes := utils.DecodeBase64(sceneNumber)
-	group := r.DB.GetGroupByAddr(address)
-	r.Controller.SendRecallMessage(sceneNumberBytes, address, group.KeyIndex)
+func (r *mutationResolver) SceneRecall(ctx context.Context, sceneNumber int, addr int) (int, error) {
+	group := r.Store.Groups[uint16(addr)]
+	r.Controller.SendRecallMessage(uint16(sceneNumber), uint16(addr), group.KeyIndex)
 	return sceneNumber, nil
 }
 
-func (r *mutationResolver) SceneDelete(ctx context.Context, sceneNumber string, addr string) (string, error) {
-	address := utils.DecodeBase64(addr)
-	sceneNumberBytes := utils.DecodeBase64(sceneNumber)
-	group := r.DB.GetGroupByAddr(address)
-	group.DeleteScene(sceneNumberBytes, r.DB)
-	r.Controller.SendDeleteMessage(sceneNumberBytes, address, group.KeyIndex)
-	return utils.EncodeBase64(sceneNumberBytes), nil
+func (r *mutationResolver) SceneDelete(ctx context.Context, sceneNumber int, addr int) (int, error) {
+	group := r.Store.Groups[uint16(addr)]
+	group.DeleteScene(uint16(sceneNumber))
+	r.Controller.SendDeleteMessage(uint16(addr), uint16(addr), group.KeyIndex)
+	return sceneNumber, nil
 }
 
-func (r *mutationResolver) EventBind(ctx context.Context, sceneNumber string, groupAddr string, elemAddr string) (string, error) {
-	groupAddress := utils.DecodeBase64(groupAddr)
-	elemAddress := utils.DecodeBase64(elemAddr)
-	sceneNumberBytes := utils.DecodeBase64(sceneNumber)
-	group := r.DB.GetGroupByAddr(groupAddress)
-	device := r.DB.GetDeviceByElemAddr(elemAddress)
-	device.UpdateState(elemAddress, sceneNumberBytes, r.DB)
-	r.Controller.SendBindMessage(sceneNumberBytes, elemAddress, group.KeyIndex)
-	return utils.EncodeBase64(sceneNumberBytes), nil
+func (r *mutationResolver) EventBind(ctx context.Context, sceneNumber int, groupAddr int, devAddr int, elemAddr int) (int, error) {
+	group := r.Store.Groups[uint16(groupAddr)]
+	device := group.Devices[uint16(devAddr)]
+	var sceneNumberBytes []byte
+	binary.BigEndian.PutUint16(sceneNumberBytes, uint16(sceneNumber))
+	device.UpdateState(uint16(elemAddr), sceneNumberBytes)
+	r.Controller.SendBindMessage(uint16(sceneNumber), uint16(elemAddr), group.KeyIndex)
+	return sceneNumber, nil
 }
 
 func (r *mutationResolver) AddUser(ctx context.Context) (string, error) {
@@ -254,7 +250,7 @@ func (r *mutationResolver) AddUser(ctx context.Context) (string, error) {
 	webKey := make([]byte, 16)
 	rand.Read(webKey)
 	// Add webKey to netData
-	netData := r.DB.GetNetData()
+	netData := r.Store.NetData
 	netData.AddWebKey(webKey)
 	return utils.EncodeBase64(webKey), nil
 }
@@ -268,11 +264,11 @@ func (r *queryResolver) AvailableDevices(ctx context.Context) ([]string, error) 
 	return uuids, nil
 }
 
-func (r *queryResolver) AvailableGroups(ctx context.Context) ([]*model.Group, error) {
-	groups := r.DB.GetGroups()
-	groupPointers := make([]*model.Group, 0)
+func (r *queryResolver) AvailableGroups(ctx context.Context) ([]*generated.GroupResponse, error) {
+	groups := r.Store.Groups
+	groupPointers := make([]*generated.GroupResponse, 0)
 	for i := range groups {
-		groupPointers = append(groupPointers, &groups[i])
+		groupPointers = append(groupPointers, &generated.GroupResponse{Addr: int(i), Group: groups[i]})
 	}
 	return groupPointers, nil
 }
@@ -284,54 +280,34 @@ func (r *queryResolver) GetUserPin(ctx context.Context) (int, error) {
 	return r.UserPin, nil
 }
 
-func (r *sceneResolver) Number(ctx context.Context, obj *model.Scene) (string, error) {
-	return utils.EncodeBase64(obj.Number), nil
-}
-
-func (r *subscriptionResolver) ListGroup(ctx context.Context, addr string) (<-chan *generated.ListGroupResponse, error) {
-	address := utils.DecodeBase64(addr)
-	groupChan := make(chan *generated.ListGroupResponse, 1)
+func (r *subscriptionResolver) ListGroup(ctx context.Context, addr int) (<-chan *generated.GroupResponse, error) {
+	groupChan := make(chan *generated.GroupResponse, 1)
 	// Put initial result in chan
-	group := r.DB.GetGroupByAddr(address)
-	// Get device pointers
-	devicePointers := make([]*model.Device, 0)
-	devices := r.DB.GetDevices()
-	for i, device := range devices {
-		for _, devAddr := range group.DevAddrs {
-			if reflect.DeepEqual(devAddr, device.Addr) {
-				devicePointers = append(devicePointers, &devices[i])
-			}
-		}
-	}
-	// Get scene pointers
-	scenePointers := make([]*model.Scene, 0)
-	scenes := group.GetScenes()
-	for i := range scenes {
-		scenePointers = append(scenePointers, &scenes[i])
-	}
-	groupChan <- &generated.ListGroupResponse{
-		Devices: devicePointers,
-		Scenes:  scenePointers,
+	group := r.Store.Groups[uint16(addr)]
+	groupChan <- &generated.GroupResponse{
+		Addr:  addr,
+		Group: group,
 	}
 	return groupChan, nil
 }
 
-func (r *subscriptionResolver) GetState(ctx context.Context, addr string) (<-chan string, error) {
-	address := utils.DecodeBase64(addr)
+func (r *subscriptionResolver) GetState(ctx context.Context, groupAddr int, devAddr int, elemAddr int) (<-chan string, error) {
 	stateChan := make(chan string, 1)
 	r.StateObservers = append(r.StateObservers, stateObserver{
-		addr:     address,
-		messages: stateChan,
-		ctx:      ctx,
+		groupAddr: uint16(groupAddr),
+		devAddr:   uint16(devAddr),
+		elemAddr:  uint16(elemAddr),
+		messages:  stateChan,
+		ctx:       ctx,
 	})
-	device := r.DB.GetDeviceByElemAddr(address)
-	state := device.GetState(address)
+	device := r.Store.Groups[uint16(groupAddr)].Devices[uint16(devAddr)]
+	state := device.GetState(uint16(elemAddr))
 	stateChan <- utils.EncodeBase64(state)
 	return stateChan, nil
 }
 
-func (r *subscriptionResolver) GetEvents(ctx context.Context) (<-chan string, error) {
-	eventChan := make(chan string, 1)
+func (r *subscriptionResolver) GetEvents(ctx context.Context) (<-chan int, error) {
+	eventChan := make(chan int, 1)
 	r.EventObservers = append(r.EventObservers, eventObserver{
 		messages: eventChan,
 		ctx:      ctx,
@@ -354,9 +330,6 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
-// Scene returns generated.SceneResolver implementation.
-func (r *Resolver) Scene() generated.SceneResolver { return &sceneResolver{r} }
-
 // Subscription returns generated.SubscriptionResolver implementation.
 func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subscriptionResolver{r} }
 
@@ -365,5 +338,4 @@ type elementResolver struct{ *Resolver }
 type groupResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
-type sceneResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }

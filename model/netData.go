@@ -3,50 +3,44 @@ package model
 import (
 	"reflect"
 
-	"github.com/AJGherardi/HomeHub/utils"
-
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // MakeNetData makes a new net data with the given webKey
-func MakeNetData(webKey []byte, db DB) {
-	netData := NetData{
-		ID:              primitive.NewObjectID(),
-		NextGroupAddr:   []byte{0x00, 0xc0},
-		NextSceneNumber: []byte{0x01, 0x00},
+func MakeNetData(webKey []byte) NetData {
+	return NetData{
+		NextGroupAddr:   0xc000,
+		NextSceneNumber: 0x0001,
 		WebKeys:         [][]byte{webKey},
 	}
-	db.InsertNetData(netData)
 }
 
 // NetData used for sending messages and adding new devices
 type NetData struct {
 	ID              primitive.ObjectID `bson:"_id"`
-	NextGroupAddr   []byte
-	NextSceneNumber []byte
+	NextGroupAddr   uint16
+	NextSceneNumber uint16
 	WebKeys         [][]byte
 }
 
 // GetNextGroupAddr returns the next group address
-func (n *NetData) GetNextGroupAddr() []byte {
+func (n *NetData) GetNextGroupAddr() uint16 {
 	return n.NextGroupAddr
 }
 
 // GetNextSceneNumber returns the next scene number
-func (n *NetData) GetNextSceneNumber() []byte {
+func (n *NetData) GetNextSceneNumber() uint16 {
 	return n.NextSceneNumber
 }
 
 // IncrementNextGroupAddr increments the next group address
-func (n *NetData) IncrementNextGroupAddr(db DB) {
-	n.NextGroupAddr = utils.Increment16(n.NextGroupAddr)
-	db.UpdateNetData(*n)
+func (n *NetData) IncrementNextGroupAddr() {
+	n.NextGroupAddr++
 }
 
 // IncrementNextSceneNumber increments the next app key index
-func (n *NetData) IncrementNextSceneNumber(db DB) {
-	n.NextSceneNumber = utils.Increment16(n.NextSceneNumber)
-	db.UpdateNetData(*n)
+func (n *NetData) IncrementNextSceneNumber() {
+	n.NextSceneNumber++
 }
 
 // CheckWebKey checks the validity of the given webKey

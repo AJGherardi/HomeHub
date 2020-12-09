@@ -1,58 +1,69 @@
+type DeviceResponse {
+  addr: Int!
+  device: Device
+}
+
+type ElementResponse {
+  addr: Int!
+  element: Element
+}
+
+type GroupResponse {
+  addr: Int!
+  group: Group
+}
+
+type SceneResponse {
+  number: Int!
+  scene: Scene
+}
+
 type Device {
-  addr: String!
   type: String!
-  elements: [Element!]!
+  elements: [ElementResponse!]!
 }
 
 type Element {
   name: String!
-  addr: String!
   state: String!
   stateType: String!
 }
 
 type Group {
-  addr: String!
   name: String!
-  scenes: [Scene]!
-  devAddrs: [String!]!
+  scenes: [SceneResponse]!
+  devices: [DeviceResponse]!
 }
 
 type Scene {
   name: String!
-  number: String!
 }
 
 type Mutation {
-  addDevice(addr: String!, devUUID: String!, name: String!): Device!
-  removeDevice(addr: String!): Device!
-  removeGroup(addr: String!): Group!
-  addGroup(name: String!): Group!
+  addDevice(addr: Int!, devUUID: String!, name: String!): Int!
+  removeDevice(addr: Int!, groupAddr: Int!): Int!
+  removeGroup(addr: Int!): Int!
+  addGroup(name: String!): Int!
   configHub: String!
   resetHub: Boolean!
-  setState(addr: String!, value: String!): Boolean!
-  sceneStore(name: String! ,addr: String!): String!
-  sceneRecall(sceneNumber: String!, addr: String!): String!
-  sceneDelete(sceneNumber: String!, addr: String!): String!
-  eventBind(sceneNumber: String!, groupAddr: String!, elemAddr: String!): String!
+  setState(groupAddr: Int! ,addr: Int!, value: String!): Boolean!
+  sceneStore(name: String! ,addr: Int!): Int!
+  sceneRecall(sceneNumber: Int!, addr: Int!): Int!
+  sceneDelete(sceneNumber: Int!, addr: Int!): Int!
+  eventBind(sceneNumber: Int!, groupAddr: Int!, devAddr: Int!, elemAddr: Int!): Int!
   addUser: String!
 }
 
 type Query {
   availableDevices: [String!]!
-  availableGroups: [Group]
+  availableGroups: [GroupResponse]
   getUserPin: Int!
 }
 
 type Subscription {
-  listGroup(addr: String!): ListGroupResponse
-  getState(addr: String!): String!
-  getEvents: String!
-}
-
-type ListGroupResponse {
-  devices: [Device!]!
-  scenes: [Scene!]!
+  listGroup(addr: Int!): GroupResponse
+  getState(groupAddr: Int!, devAddr: Int!, elemAddr: Int!): String!
+  getEvents: Int!
 }
 
 schema {

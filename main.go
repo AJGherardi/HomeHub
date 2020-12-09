@@ -2,14 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
 	"errors"
-	"log"
-	"math/big"
 	"net/http"
 	"os"
 	"time"
@@ -24,38 +17,40 @@ import (
 	"github.com/AJGherardi/HomeHub/utils"
 	"github.com/gorilla/websocket"
 	"github.com/grandcat/zeroconf"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 var (
 	mdns               *zeroconf.Server
 	unprovisionedNodes = new([][]byte)
-	nodeAdded          = make(chan []byte)
+	nodeAdded          = make(chan uint16)
 	stateChanged       = make(chan []byte)
 	controller         mesh.Controller
+	store              model.Store
 )
 
 func main() {
-	// Get db
-	db := model.OpenDB()
+	store := model.Store{
+		Groups: map[uint16]*model.Group{},
+	}
 	// Open Mesh Controller and defer close
 	controller = mesh.Open()
 	defer controller.Close()
 	// Generate a cert
 	if _, err := os.Stat("cert.pem"); err != nil {
 		if os.IsNotExist(err) {
-			writeCert()
+			utils.WriteCert()
 		}
 	}
 	// Check if configured
-	if db.GetNetData().ID == primitive.NilObjectID {
-		// Setup the mdns service
+	if !utils.CheckIfConfigured() {
 		mdns, _ = zeroconf.Register("unprovisioned", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 	} else {
 		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
+		store = graph.ReadFromFile()
+		go graph.SaveStore(&store)
 	}
 	// Serve the schema
-	schema, updateState, publishEvents, resolver := graph.New(db, controller, nodeAdded, mdns, unprovisionedNodes)
+	schema, updateState, publishEvents, resolver := graph.New(&store, controller, nodeAdded, mdns, unprovisionedNodes)
 	srv := handler.New(
 		generated.NewExecutableSchema(
 			schema,
@@ -66,24 +61,34 @@ func main() {
 		// onSetupStatus
 		func() {},
 		// onAddKeyStatus
-		func(appIdx []byte) {},
+		func(appIdx uint16) {},
 		// onUnprovisionedBeacon
 		func(uuid []byte) {
 			*unprovisionedNodes = append(*unprovisionedNodes, uuid)
 		},
 		// onNodeAdded
-		func(addr []byte) {
+		func(addr uint16) {
 			nodeAdded <- addr
 		},
 		// onState
-		func(addr []byte, state byte) {
-			// Update device state
-			device := db.GetDeviceByElemAddr(addr)
-			device.UpdateState(addr, []byte{state}, db)
+		func(addr uint16, state byte) {
+			// Get refrence to device with element
+			for _, group := range store.Groups {
+				for _, device := range group.Devices {
+					for elemAddr := range device.Elements {
+						if elemAddr == addr {
+							// Update element state
+							device.UpdateState(addr, []byte{state})
+						}
+					}
+
+				}
+			}
+			// Push new state
 			updateState()
 		},
 		// onEvent
-		func(addr []byte) {
+		func(addr uint16) {
 			publishEvents(addr)
 		},
 	)
@@ -95,9 +100,8 @@ func main() {
 			},
 		},
 		InitFunc: func(ctx context.Context, initPayload transport.InitPayload) (context.Context, error) {
-			netData := db.GetNetData()
 			// If not configured auth is not required
-			if netData.ID == primitive.NilObjectID {
+			if !utils.CheckIfConfigured() {
 				return ctx, nil
 			}
 			// If pin is available check it
@@ -110,7 +114,7 @@ func main() {
 			}
 			// Check web key
 			webKey := utils.DecodeBase64(initPayload["webKey"].(string))
-			verify := netData.CheckWebKey(webKey)
+			verify := store.NetData.CheckWebKey(webKey)
 			// If valid continue
 			if verify {
 				return ctx, nil
@@ -119,49 +123,8 @@ func main() {
 			return ctx, errors.New("Bad webKey")
 		},
 	})
+	srv.AddTransport(transport.POST{})
 	srv.Use(extension.Introspection{})
 	http.Handle("/graphql", srv)
-	http.ListenAndServeTLS("", "/app/cert.pem", "/app/key.pem", nil)
-}
-
-func writeCert() {
-	// Make private key
-	priv, _ := rsa.GenerateKey(rand.Reader, 2048)
-	// Set key usage
-	keyUsage := x509.KeyUsageDigitalSignature
-	// Set time limits
-	notBefore := time.Now()
-	notAfter := notBefore.Add(365 * 24 * time.Hour)
-	// Make serial number
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
-	// Create cert template
-	template := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			Organization: []string{"Home"},
-		},
-		NotBefore: notBefore,
-		NotAfter:  notAfter,
-
-		KeyUsage:              keyUsage,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-	}
-	// Set ca to true
-	template.IsCA = true
-	template.KeyUsage |= x509.KeyUsageCertSign
-	// Create the cert
-	derBytes, _ := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
-	// Write cert to file
-	certOut, _ := os.Create("/app/cert.pem")
-	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
-	certOut.Close()
-	log.Print("wrote cert.pem\n")
-	// Write key to file
-	keyOut, _ := os.OpenFile("/app/key.pem", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	privBytes, _ := x509.MarshalPKCS8PrivateKey(priv)
-	pem.Encode(keyOut, &pem.Block{Type: "PRIVATE KEY", Bytes: privBytes})
-	keyOut.Close()
-	log.Print("wrote key.pem\n")
+	http.ListenAndServe(":8080", nil)
 }
