@@ -61,12 +61,12 @@ type Query {
 }
 
 type Subscription {
-  listGroup(groupAddr: Int!): GroupResponse
-  getState(groupAddr: Int!, devAddr: Int!, elemAddr: Int!): String!
-  getEvents: Int!
+  watchGroup(groupAddr: Int!): GroupResponse
+  watchState(groupAddr: Int!, devAddr: Int!, elemAddr: Int!): String!
+  watchEvents: Int!
 }
 
 schema {
-    query: Query
-    mutation: Mutation
+  query: Query
+  mutation: Mutation
 }

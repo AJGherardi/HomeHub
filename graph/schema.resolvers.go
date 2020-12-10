@@ -129,7 +129,7 @@ func (r *queryResolver) GetUserPin(ctx context.Context) (int, error) {
 	return r.UserPin, nil
 }
 
-func (r *subscriptionResolver) ListGroup(ctx context.Context, groupAddr int) (<-chan *generated.GroupResponse, error) {
+func (r *subscriptionResolver) WatchGroup(ctx context.Context, groupAddr int) (<-chan *generated.GroupResponse, error) {
 	groupChan := make(chan *generated.GroupResponse, 1)
 	// Put initial result in chan
 	group := r.Store.Groups[uint16(groupAddr)]
@@ -140,7 +140,7 @@ func (r *subscriptionResolver) ListGroup(ctx context.Context, groupAddr int) (<-
 	return groupChan, nil
 }
 
-func (r *subscriptionResolver) GetState(ctx context.Context, groupAddr int, devAddr int, elemAddr int) (<-chan string, error) {
+func (r *subscriptionResolver) WatchState(ctx context.Context, groupAddr int, devAddr int, elemAddr int) (<-chan string, error) {
 	stateChan := make(chan string, 1)
 	r.StateObservers = append(r.StateObservers, stateObserver{
 		groupAddr: uint16(groupAddr),
@@ -155,7 +155,7 @@ func (r *subscriptionResolver) GetState(ctx context.Context, groupAddr int, devA
 	return stateChan, nil
 }
 
-func (r *subscriptionResolver) GetEvents(ctx context.Context) (<-chan int, error) {
+func (r *subscriptionResolver) WatchEvents(ctx context.Context) (<-chan int, error) {
 	eventChan := make(chan int, 1)
 	r.EventObservers = append(r.EventObservers, eventObserver{
 		messages: eventChan,

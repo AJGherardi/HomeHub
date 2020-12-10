@@ -111,9 +111,9 @@ type ComplexityRoot struct {
 	}
 
 	Subscription struct {
-		GetEvents func(childComplexity int) int
-		GetState  func(childComplexity int, groupAddr int, devAddr int, elemAddr int) int
-		ListGroup func(childComplexity int, groupAddr int) int
+		WatchEvents func(childComplexity int) int
+		WatchGroup  func(childComplexity int, groupAddr int) int
+		WatchState  func(childComplexity int, groupAddr int, devAddr int, elemAddr int) int
 	}
 }
 
@@ -147,9 +147,9 @@ type QueryResolver interface {
 	GetUserPin(ctx context.Context) (int, error)
 }
 type SubscriptionResolver interface {
-	ListGroup(ctx context.Context, groupAddr int) (<-chan *GroupResponse, error)
-	GetState(ctx context.Context, groupAddr int, devAddr int, elemAddr int) (<-chan string, error)
-	GetEvents(ctx context.Context) (<-chan int, error)
+	WatchGroup(ctx context.Context, groupAddr int) (<-chan *GroupResponse, error)
+	WatchState(ctx context.Context, groupAddr int, devAddr int, elemAddr int) (<-chan string, error)
+	WatchEvents(ctx context.Context) (<-chan int, error)
 }
 
 type executableSchema struct {
@@ -436,36 +436,36 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.SceneResponse.Scene(childComplexity), true
 
-	case "Subscription.getEvents":
-		if e.complexity.Subscription.GetEvents == nil {
+	case "Subscription.watchEvents":
+		if e.complexity.Subscription.WatchEvents == nil {
 			break
 		}
 
-		return e.complexity.Subscription.GetEvents(childComplexity), true
+		return e.complexity.Subscription.WatchEvents(childComplexity), true
 
-	case "Subscription.getState":
-		if e.complexity.Subscription.GetState == nil {
+	case "Subscription.watchGroup":
+		if e.complexity.Subscription.WatchGroup == nil {
 			break
 		}
 
-		args, err := ec.field_Subscription_getState_args(context.TODO(), rawArgs)
+		args, err := ec.field_Subscription_watchGroup_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Subscription.GetState(childComplexity, args["groupAddr"].(int), args["devAddr"].(int), args["elemAddr"].(int)), true
+		return e.complexity.Subscription.WatchGroup(childComplexity, args["groupAddr"].(int)), true
 
-	case "Subscription.listGroup":
-		if e.complexity.Subscription.ListGroup == nil {
+	case "Subscription.watchState":
+		if e.complexity.Subscription.WatchState == nil {
 			break
 		}
 
-		args, err := ec.field_Subscription_listGroup_args(context.TODO(), rawArgs)
+		args, err := ec.field_Subscription_watchState_args(context.TODO(), rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Subscription.ListGroup(childComplexity, args["groupAddr"].(int)), true
+		return e.complexity.Subscription.WatchState(childComplexity, args["groupAddr"].(int), args["devAddr"].(int), args["elemAddr"].(int)), true
 
 	}
 	return 0, false
@@ -611,14 +611,14 @@ type Query {
 }
 
 type Subscription {
-  listGroup(groupAddr: Int!): GroupResponse
-  getState(groupAddr: Int!, devAddr: Int!, elemAddr: Int!): String!
-  getEvents: Int!
+  watchGroup(groupAddr: Int!): GroupResponse
+  watchState(groupAddr: Int!, devAddr: Int!, elemAddr: Int!): String!
+  watchEvents: Int!
 }
 
 schema {
-    query: Query
-    mutation: Mutation
+  query: Query
+  mutation: Mutation
 }`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -876,7 +876,22 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 	return args, nil
 }
 
-func (ec *executionContext) field_Subscription_getState_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+func (ec *executionContext) field_Subscription_watchGroup_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 int
+	if tmp, ok := rawArgs["groupAddr"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupAddr"))
+		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["groupAddr"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Subscription_watchState_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
 	var arg0 int
@@ -906,21 +921,6 @@ func (ec *executionContext) field_Subscription_getState_args(ctx context.Context
 		}
 	}
 	args["elemAddr"] = arg2
-	return args, nil
-}
-
-func (ec *executionContext) field_Subscription_listGroup_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
-	var err error
-	args := map[string]interface{}{}
-	var arg0 int
-	if tmp, ok := rawArgs["groupAddr"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupAddr"))
-		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
-		if err != nil {
-			return nil, err
-		}
-	}
-	args["groupAddr"] = arg0
 	return args, nil
 }
 
@@ -2201,7 +2201,7 @@ func (ec *executionContext) _SceneResponse_scene(ctx context.Context, field grap
 	return ec.marshalOScene2ᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐScene(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Subscription_listGroup(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+func (ec *executionContext) _Subscription_watchGroup(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -2218,7 +2218,7 @@ func (ec *executionContext) _Subscription_listGroup(ctx context.Context, field g
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Subscription_listGroup_args(ctx, rawArgs)
+	args, err := ec.field_Subscription_watchGroup_args(ctx, rawArgs)
 	if err != nil {
 		ec.Error(ctx, err)
 		return nil
@@ -2226,7 +2226,7 @@ func (ec *executionContext) _Subscription_listGroup(ctx context.Context, field g
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Subscription().ListGroup(rctx, args["groupAddr"].(int))
+		return ec.resolvers.Subscription().WatchGroup(rctx, args["groupAddr"].(int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2250,7 +2250,7 @@ func (ec *executionContext) _Subscription_listGroup(ctx context.Context, field g
 	}
 }
 
-func (ec *executionContext) _Subscription_getState(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+func (ec *executionContext) _Subscription_watchState(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -2267,7 +2267,7 @@ func (ec *executionContext) _Subscription_getState(ctx context.Context, field gr
 
 	ctx = graphql.WithFieldContext(ctx, fc)
 	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Subscription_getState_args(ctx, rawArgs)
+	args, err := ec.field_Subscription_watchState_args(ctx, rawArgs)
 	if err != nil {
 		ec.Error(ctx, err)
 		return nil
@@ -2275,7 +2275,7 @@ func (ec *executionContext) _Subscription_getState(ctx context.Context, field gr
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Subscription().GetState(rctx, args["groupAddr"].(int), args["devAddr"].(int), args["elemAddr"].(int))
+		return ec.resolvers.Subscription().WatchState(rctx, args["groupAddr"].(int), args["devAddr"].(int), args["elemAddr"].(int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2302,7 +2302,7 @@ func (ec *executionContext) _Subscription_getState(ctx context.Context, field gr
 	}
 }
 
-func (ec *executionContext) _Subscription_getEvents(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
+func (ec *executionContext) _Subscription_watchEvents(ctx context.Context, field graphql.CollectedField) (ret func() graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -2320,7 +2320,7 @@ func (ec *executionContext) _Subscription_getEvents(ctx context.Context, field g
 	ctx = graphql.WithFieldContext(ctx, fc)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Subscription().GetEvents(rctx)
+		return ec.resolvers.Subscription().WatchEvents(rctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3895,12 +3895,12 @@ func (ec *executionContext) _Subscription(ctx context.Context, sel ast.Selection
 	}
 
 	switch fields[0].Name {
-	case "listGroup":
-		return ec._Subscription_listGroup(ctx, fields[0])
-	case "getState":
-		return ec._Subscription_getState(ctx, fields[0])
-	case "getEvents":
-		return ec._Subscription_getEvents(ctx, fields[0])
+	case "watchGroup":
+		return ec._Subscription_watchGroup(ctx, fields[0])
+	case "watchState":
+		return ec._Subscription_watchState(ctx, fields[0])
+	case "watchEvents":
+		return ec._Subscription_watchEvents(ctx, fields[0])
 	default:
 		panic("unknown field " + strconv.Quote(fields[0].Name))
 	}
