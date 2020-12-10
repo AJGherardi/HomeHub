@@ -4,6 +4,7 @@ import (
 	"context"
 
 	mesh "github.com/AJGherardi/GoMeshController"
+	"github.com/AJGherardi/HomeHub/cmd"
 	"github.com/AJGherardi/HomeHub/generated"
 	"github.com/AJGherardi/HomeHub/model"
 	"github.com/AJGherardi/HomeHub/utils"
@@ -71,8 +72,7 @@ func New(
 					continue
 				default:
 				}
-				device := store.Groups[uint16(observer.groupAddr)].Devices[uint16(observer.devAddr)]
-				state := device.GetState(observer.elemAddr)
+				state := cmd.ReadStates(store, observer.groupAddr, observer.devAddr, observer.elemAddr)
 				observer.messages <- utils.EncodeBase64(state)
 			}
 		},

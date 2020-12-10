@@ -1,34 +1,51 @@
 package graph
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"os"
-	"time"
-
+	"github.com/AJGherardi/HomeHub/generated"
 	"github.com/AJGherardi/HomeHub/model"
 )
 
-// SaveToFile writes data to the home.data file
-func SaveToFile(store model.Store) {
-	jsonData, _ := json.Marshal(store)
-	ioutil.WriteFile("home.data", jsonData, 0777)
-}
-
-// ReadFromFile reads data from the home.data file
-func ReadFromFile() model.Store {
-	jsonData, _ := ioutil.ReadFile("home.data")
-	store := new(model.Store)
-	json.Unmarshal(jsonData, store)
-	return *store
-}
-
-// SaveStore handles updating the store file
-func SaveStore(store *model.Store) {
-	for {
-		os.Remove("home.data")
-		jsonData, _ := json.Marshal(store)
-		ioutil.WriteFile("home.data", jsonData, 0777)
-		time.Sleep(500 * time.Millisecond)
+func toElementResponseSlice(elements map[uint16]*model.Element) []*generated.ElementResponse {
+	elementResponses := []*generated.ElementResponse{}
+	for i := range elements {
+		elementResponses = append(
+			elementResponses,
+			toElementResponse(i, elements[i]),
+		)
 	}
+	return elementResponses
+}
+
+func toDeviceResponseSlice(devices map[uint16]*model.Device) []*generated.DeviceResponse {
+	deviceResponses := []*generated.DeviceResponse{}
+	for i := range devices {
+		deviceResponses = append(
+			deviceResponses,
+			toDeviceResponse(i, devices[i]),
+		)
+	}
+	return deviceResponses
+}
+
+func toSceneResponseSlice(scenes map[uint16]*model.Scene) []*generated.SceneResponse {
+	sceneResponses := []*generated.SceneResponse{}
+	for i := range scenes {
+		sceneResponses = append(
+			sceneResponses,
+			toSceneResponse(i, scenes[i]),
+		)
+	}
+	return sceneResponses
+}
+
+func toElementResponse(addr uint16, element *model.Element) *generated.ElementResponse {
+	return &generated.ElementResponse{Addr: int(addr), Element: element}
+}
+
+func toDeviceResponse(addr uint16, device *model.Device) *generated.DeviceResponse {
+	return &generated.DeviceResponse{Addr: int(addr), Device: device}
+}
+
+func toSceneResponse(number uint16, scene *model.Scene) *generated.SceneResponse {
+	return &generated.SceneResponse{Number: int(number), Scene: scene}
 }

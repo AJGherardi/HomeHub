@@ -11,6 +11,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	mesh "github.com/AJGherardi/GoMeshController"
+	"github.com/AJGherardi/HomeHub/cmd"
 	"github.com/AJGherardi/HomeHub/generated"
 	"github.com/AJGherardi/HomeHub/graph"
 	"github.com/AJGherardi/HomeHub/model"
@@ -46,8 +47,8 @@ func main() {
 		mdns, _ = zeroconf.Register("unprovisioned", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
 	} else {
 		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
-		store = graph.ReadFromFile()
-		go graph.SaveStore(&store)
+		store = cmd.ReadFromFile()
+		go cmd.SaveStore(&store)
 	}
 	// Serve the schema
 	schema, updateState, publishEvents, resolver := graph.New(&store, controller, nodeAdded, mdns, unprovisionedNodes)
@@ -72,18 +73,7 @@ func main() {
 		},
 		// onState
 		func(addr uint16, state byte) {
-			// Get refrence to device with element
-			for _, group := range store.Groups {
-				for _, device := range group.Devices {
-					for elemAddr := range device.Elements {
-						if elemAddr == addr {
-							// Update element state
-							device.UpdateState(addr, []byte{state})
-						}
-					}
-
-				}
-			}
+			cmd.UpdateState(&store, addr, state)
 			// Push new state
 			updateState()
 		},
