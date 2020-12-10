@@ -6,15 +6,15 @@ import (
 )
 
 // RemoveGroup deletes the group from the store and sends reset messages to all the devices in the group
-func RemoveGroup(store *model.Store, controller mesh.Controller, addr uint16) {
+func RemoveGroup(store *model.Store, controller mesh.Controller, groupAddr uint16) {
 	// Get groupAddr
-	group := store.Groups[addr]
+	group := store.Groups[groupAddr]
 	// Reset devices
 	for addr := range group.Devices {
 		controller.ResetNode(addr)
 	}
 	// Remove the group
-	delete(store.Groups, addr)
+	delete(store.Groups, groupAddr)
 }
 
 // AddGroup creates a group in the store with the given name

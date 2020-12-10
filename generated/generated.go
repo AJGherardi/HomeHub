@@ -81,18 +81,18 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddDevice    func(childComplexity int, addr int, devUUID string, name string) int
+		AddDevice    func(childComplexity int, groupAddr int, devUUID string, name string) int
 		AddGroup     func(childComplexity int, name string) int
 		AddUser      func(childComplexity int) int
 		ConfigHub    func(childComplexity int) int
 		EventBind    func(childComplexity int, sceneNumber int, groupAddr int, devAddr int, elemAddr int) int
-		RemoveDevice func(childComplexity int, addr int, groupAddr int) int
+		RemoveDevice func(childComplexity int, devAddr int, groupAddr int) int
 		RemoveGroup  func(childComplexity int, addr int) int
 		ResetHub     func(childComplexity int) int
-		SceneDelete  func(childComplexity int, sceneNumber int, addr int) int
-		SceneRecall  func(childComplexity int, sceneNumber int, addr int) int
-		SceneStore   func(childComplexity int, name string, addr int) int
-		SetState     func(childComplexity int, groupAddr int, addr int, value string) int
+		SceneDelete  func(childComplexity int, sceneNumber int, groupAddr int) int
+		SceneRecall  func(childComplexity int, sceneNumber int, groupAddr int) int
+		SceneStore   func(childComplexity int, name string, groupAddr int) int
+		SetState     func(childComplexity int, groupAddr int, elemAddr int, value string) int
 	}
 
 	Query struct {
@@ -113,7 +113,7 @@ type ComplexityRoot struct {
 	Subscription struct {
 		GetEvents func(childComplexity int) int
 		GetState  func(childComplexity int, groupAddr int, devAddr int, elemAddr int) int
-		ListGroup func(childComplexity int, addr int) int
+		ListGroup func(childComplexity int, groupAddr int) int
 	}
 }
 
@@ -128,18 +128,18 @@ type GroupResolver interface {
 	Devices(ctx context.Context, obj *model.Group) ([]*DeviceResponse, error)
 }
 type MutationResolver interface {
-	AddDevice(ctx context.Context, addr int, devUUID string, name string) (int, error)
-	RemoveDevice(ctx context.Context, addr int, groupAddr int) (int, error)
-	RemoveGroup(ctx context.Context, addr int) (int, error)
-	AddGroup(ctx context.Context, name string) (int, error)
 	ConfigHub(ctx context.Context) (string, error)
 	ResetHub(ctx context.Context) (bool, error)
-	SetState(ctx context.Context, groupAddr int, addr int, value string) (bool, error)
-	SceneStore(ctx context.Context, name string, addr int) (int, error)
-	SceneRecall(ctx context.Context, sceneNumber int, addr int) (int, error)
-	SceneDelete(ctx context.Context, sceneNumber int, addr int) (int, error)
-	EventBind(ctx context.Context, sceneNumber int, groupAddr int, devAddr int, elemAddr int) (int, error)
+	AddDevice(ctx context.Context, groupAddr int, devUUID string, name string) (int, error)
+	RemoveDevice(ctx context.Context, devAddr int, groupAddr int) (int, error)
+	AddGroup(ctx context.Context, name string) (int, error)
+	RemoveGroup(ctx context.Context, addr int) (int, error)
 	AddUser(ctx context.Context) (string, error)
+	SetState(ctx context.Context, groupAddr int, elemAddr int, value string) (bool, error)
+	SceneStore(ctx context.Context, name string, groupAddr int) (int, error)
+	SceneRecall(ctx context.Context, sceneNumber int, groupAddr int) (int, error)
+	SceneDelete(ctx context.Context, sceneNumber int, groupAddr int) (int, error)
+	EventBind(ctx context.Context, sceneNumber int, groupAddr int, devAddr int, elemAddr int) (int, error)
 }
 type QueryResolver interface {
 	AvailableDevices(ctx context.Context) ([]string, error)
@@ -147,7 +147,7 @@ type QueryResolver interface {
 	GetUserPin(ctx context.Context) (int, error)
 }
 type SubscriptionResolver interface {
-	ListGroup(ctx context.Context, addr int) (<-chan *GroupResponse, error)
+	ListGroup(ctx context.Context, groupAddr int) (<-chan *GroupResponse, error)
 	GetState(ctx context.Context, groupAddr int, devAddr int, elemAddr int) (<-chan string, error)
 	GetEvents(ctx context.Context) (<-chan int, error)
 }
@@ -275,7 +275,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.AddDevice(childComplexity, args["addr"].(int), args["devUUID"].(string), args["name"].(string)), true
+		return e.complexity.Mutation.AddDevice(childComplexity, args["groupAddr"].(int), args["devUUID"].(string), args["name"].(string)), true
 
 	case "Mutation.addGroup":
 		if e.complexity.Mutation.AddGroup == nil {
@@ -325,7 +325,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.RemoveDevice(childComplexity, args["addr"].(int), args["groupAddr"].(int)), true
+		return e.complexity.Mutation.RemoveDevice(childComplexity, args["devAddr"].(int), args["groupAddr"].(int)), true
 
 	case "Mutation.removeGroup":
 		if e.complexity.Mutation.RemoveGroup == nil {
@@ -356,7 +356,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.SceneDelete(childComplexity, args["sceneNumber"].(int), args["addr"].(int)), true
+		return e.complexity.Mutation.SceneDelete(childComplexity, args["sceneNumber"].(int), args["groupAddr"].(int)), true
 
 	case "Mutation.sceneRecall":
 		if e.complexity.Mutation.SceneRecall == nil {
@@ -368,7 +368,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.SceneRecall(childComplexity, args["sceneNumber"].(int), args["addr"].(int)), true
+		return e.complexity.Mutation.SceneRecall(childComplexity, args["sceneNumber"].(int), args["groupAddr"].(int)), true
 
 	case "Mutation.sceneStore":
 		if e.complexity.Mutation.SceneStore == nil {
@@ -380,7 +380,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.SceneStore(childComplexity, args["name"].(string), args["addr"].(int)), true
+		return e.complexity.Mutation.SceneStore(childComplexity, args["name"].(string), args["groupAddr"].(int)), true
 
 	case "Mutation.setState":
 		if e.complexity.Mutation.SetState == nil {
@@ -392,7 +392,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.SetState(childComplexity, args["groupAddr"].(int), args["addr"].(int), args["value"].(string)), true
+		return e.complexity.Mutation.SetState(childComplexity, args["groupAddr"].(int), args["elemAddr"].(int), args["value"].(string)), true
 
 	case "Query.availableDevices":
 		if e.complexity.Query.AvailableDevices == nil {
@@ -465,7 +465,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Subscription.ListGroup(childComplexity, args["addr"].(int)), true
+		return e.complexity.Subscription.ListGroup(childComplexity, args["groupAddr"].(int)), true
 
 	}
 	return 0, false
@@ -590,18 +590,18 @@ type Scene {
 }
 
 type Mutation {
-  addDevice(addr: Int!, devUUID: String!, name: String!): Int!
-  removeDevice(addr: Int!, groupAddr: Int!): Int!
-  removeGroup(addr: Int!): Int!
-  addGroup(name: String!): Int!
   configHub: String!
   resetHub: Boolean!
-  setState(groupAddr: Int! ,addr: Int!, value: String!): Boolean!
-  sceneStore(name: String! ,addr: Int!): Int!
-  sceneRecall(sceneNumber: Int!, addr: Int!): Int!
-  sceneDelete(sceneNumber: Int!, addr: Int!): Int!
-  eventBind(sceneNumber: Int!, groupAddr: Int!, devAddr: Int!, elemAddr: Int!): Int!
+  addDevice(groupAddr: Int!, devUUID: String!, name: String!): Int!
+  removeDevice(devAddr: Int!, groupAddr: Int!): Int!
+  addGroup(name: String!): Int!
+  removeGroup(addr: Int!): Int!
   addUser: String!
+  setState(groupAddr: Int! ,elemAddr: Int!, value: String!): Boolean!
+  sceneStore(name: String! ,groupAddr: Int!): Int!
+  sceneRecall(sceneNumber: Int!, groupAddr: Int!): Int!
+  sceneDelete(sceneNumber: Int!, groupAddr: Int!): Int!
+  eventBind(sceneNumber: Int!, groupAddr: Int!, devAddr: Int!, elemAddr: Int!): Int!
 }
 
 type Query {
@@ -611,7 +611,7 @@ type Query {
 }
 
 type Subscription {
-  listGroup(addr: Int!): GroupResponse
+  listGroup(groupAddr: Int!): GroupResponse
   getState(groupAddr: Int!, devAddr: Int!, elemAddr: Int!): String!
   getEvents: Int!
 }
@@ -631,14 +631,14 @@ func (ec *executionContext) field_Mutation_addDevice_args(ctx context.Context, r
 	var err error
 	args := map[string]interface{}{}
 	var arg0 int
-	if tmp, ok := rawArgs["addr"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("addr"))
+	if tmp, ok := rawArgs["groupAddr"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupAddr"))
 		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["addr"] = arg0
+	args["groupAddr"] = arg0
 	var arg1 string
 	if tmp, ok := rawArgs["devUUID"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("devUUID"))
@@ -721,14 +721,14 @@ func (ec *executionContext) field_Mutation_removeDevice_args(ctx context.Context
 	var err error
 	args := map[string]interface{}{}
 	var arg0 int
-	if tmp, ok := rawArgs["addr"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("addr"))
+	if tmp, ok := rawArgs["devAddr"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("devAddr"))
 		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["addr"] = arg0
+	args["devAddr"] = arg0
 	var arg1 int
 	if tmp, ok := rawArgs["groupAddr"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupAddr"))
@@ -769,14 +769,14 @@ func (ec *executionContext) field_Mutation_sceneDelete_args(ctx context.Context,
 	}
 	args["sceneNumber"] = arg0
 	var arg1 int
-	if tmp, ok := rawArgs["addr"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("addr"))
+	if tmp, ok := rawArgs["groupAddr"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupAddr"))
 		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["addr"] = arg1
+	args["groupAddr"] = arg1
 	return args, nil
 }
 
@@ -793,14 +793,14 @@ func (ec *executionContext) field_Mutation_sceneRecall_args(ctx context.Context,
 	}
 	args["sceneNumber"] = arg0
 	var arg1 int
-	if tmp, ok := rawArgs["addr"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("addr"))
+	if tmp, ok := rawArgs["groupAddr"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupAddr"))
 		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["addr"] = arg1
+	args["groupAddr"] = arg1
 	return args, nil
 }
 
@@ -817,14 +817,14 @@ func (ec *executionContext) field_Mutation_sceneStore_args(ctx context.Context, 
 	}
 	args["name"] = arg0
 	var arg1 int
-	if tmp, ok := rawArgs["addr"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("addr"))
+	if tmp, ok := rawArgs["groupAddr"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupAddr"))
 		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["addr"] = arg1
+	args["groupAddr"] = arg1
 	return args, nil
 }
 
@@ -841,14 +841,14 @@ func (ec *executionContext) field_Mutation_setState_args(ctx context.Context, ra
 	}
 	args["groupAddr"] = arg0
 	var arg1 int
-	if tmp, ok := rawArgs["addr"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("addr"))
+	if tmp, ok := rawArgs["elemAddr"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("elemAddr"))
 		arg1, err = ec.unmarshalNInt2int(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["addr"] = arg1
+	args["elemAddr"] = arg1
 	var arg2 string
 	if tmp, ok := rawArgs["value"]; ok {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("value"))
@@ -913,14 +913,14 @@ func (ec *executionContext) field_Subscription_listGroup_args(ctx context.Contex
 	var err error
 	args := map[string]interface{}{}
 	var arg0 int
-	if tmp, ok := rawArgs["addr"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("addr"))
+	if tmp, ok := rawArgs["groupAddr"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupAddr"))
 		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["addr"] = arg0
+	args["groupAddr"] = arg0
 	return args, nil
 }
 
@@ -1443,174 +1443,6 @@ func (ec *executionContext) _GroupResponse_group(ctx context.Context, field grap
 	return ec.marshalOGroup2ᚖgithubᚗcomᚋAJGherardiᚋHomeHubᚋmodelᚐGroup(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Mutation_addDevice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Mutation_addDevice_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().AddDevice(rctx, args["addr"].(int), args["devUUID"].(string), args["name"].(string))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Mutation_removeDevice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Mutation_removeDevice_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().RemoveDevice(rctx, args["addr"].(int), args["groupAddr"].(int))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Mutation_removeGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Mutation_removeGroup_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().RemoveGroup(rctx, args["addr"].(int))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Mutation_addGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	rawArgs := field.ArgumentMap(ec.Variables)
-	args, err := ec.field_Mutation_addGroup_args(ctx, rawArgs)
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	fc.Args = args
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().AddGroup(rctx, args["name"].(string))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
 func (ec *executionContext) _Mutation_configHub(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1681,6 +1513,209 @@ func (ec *executionContext) _Mutation_resetHub(ctx context.Context, field graphq
 	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
+func (ec *executionContext) _Mutation_addDevice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_addDevice_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddDevice(rctx, args["groupAddr"].(int), args["devUUID"].(string), args["name"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_removeDevice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_removeDevice_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RemoveDevice(rctx, args["devAddr"].(int), args["groupAddr"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_addGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_addGroup_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddGroup(rctx, args["name"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_removeGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_removeGroup_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().RemoveGroup(rctx, args["addr"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_addUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddUser(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
 func (ec *executionContext) _Mutation_setState(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1706,7 +1741,7 @@ func (ec *executionContext) _Mutation_setState(ctx context.Context, field graphq
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().SetState(rctx, args["groupAddr"].(int), args["addr"].(int), args["value"].(string))
+		return ec.resolvers.Mutation().SetState(rctx, args["groupAddr"].(int), args["elemAddr"].(int), args["value"].(string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1748,7 +1783,7 @@ func (ec *executionContext) _Mutation_sceneStore(ctx context.Context, field grap
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().SceneStore(rctx, args["name"].(string), args["addr"].(int))
+		return ec.resolvers.Mutation().SceneStore(rctx, args["name"].(string), args["groupAddr"].(int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1790,7 +1825,7 @@ func (ec *executionContext) _Mutation_sceneRecall(ctx context.Context, field gra
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().SceneRecall(rctx, args["sceneNumber"].(int), args["addr"].(int))
+		return ec.resolvers.Mutation().SceneRecall(rctx, args["sceneNumber"].(int), args["groupAddr"].(int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1832,7 +1867,7 @@ func (ec *executionContext) _Mutation_sceneDelete(ctx context.Context, field gra
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().SceneDelete(rctx, args["sceneNumber"].(int), args["addr"].(int))
+		return ec.resolvers.Mutation().SceneDelete(rctx, args["sceneNumber"].(int), args["groupAddr"].(int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1889,41 +1924,6 @@ func (ec *executionContext) _Mutation_eventBind(ctx context.Context, field graph
 	res := resTmp.(int)
 	fc.Result = res
 	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) _Mutation_addUser(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	fc := &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		Args:       nil,
-		IsMethod:   true,
-		IsResolver: true,
-	}
-
-	ctx = graphql.WithFieldContext(ctx, fc)
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().AddUser(rctx)
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query_availableDevices(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2226,7 +2226,7 @@ func (ec *executionContext) _Subscription_listGroup(ctx context.Context, field g
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Subscription().ListGroup(rctx, args["addr"].(int))
+		return ec.resolvers.Subscription().ListGroup(rctx, args["groupAddr"].(int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3686,6 +3686,16 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "configHub":
+			out.Values[i] = ec._Mutation_configHub(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
+		case "resetHub":
+			out.Values[i] = ec._Mutation_resetHub(ctx, field)
+			if out.Values[i] == graphql.Null {
+				invalids++
+			}
 		case "addDevice":
 			out.Values[i] = ec._Mutation_addDevice(ctx, field)
 			if out.Values[i] == graphql.Null {
@@ -3696,23 +3706,18 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "removeGroup":
-			out.Values[i] = ec._Mutation_removeGroup(ctx, field)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
 		case "addGroup":
 			out.Values[i] = ec._Mutation_addGroup(ctx, field)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "configHub":
-			out.Values[i] = ec._Mutation_configHub(ctx, field)
+		case "removeGroup":
+			out.Values[i] = ec._Mutation_removeGroup(ctx, field)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
-		case "resetHub":
-			out.Values[i] = ec._Mutation_resetHub(ctx, field)
+		case "addUser":
+			out.Values[i] = ec._Mutation_addUser(ctx, field)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}
@@ -3738,11 +3743,6 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			}
 		case "eventBind":
 			out.Values[i] = ec._Mutation_eventBind(ctx, field)
-			if out.Values[i] == graphql.Null {
-				invalids++
-			}
-		case "addUser":
-			out.Values[i] = ec._Mutation_addUser(ctx, field)
 			if out.Values[i] == graphql.Null {
 				invalids++
 			}

@@ -40,18 +40,18 @@ type Scene {
 }
 
 type Mutation {
-  addDevice(addr: Int!, devUUID: String!, name: String!): Int!
-  removeDevice(addr: Int!, groupAddr: Int!): Int!
-  removeGroup(addr: Int!): Int!
-  addGroup(name: String!): Int!
   configHub: String!
   resetHub: Boolean!
-  setState(groupAddr: Int! ,addr: Int!, value: String!): Boolean!
-  sceneStore(name: String! ,addr: Int!): Int!
-  sceneRecall(sceneNumber: Int!, addr: Int!): Int!
-  sceneDelete(sceneNumber: Int!, addr: Int!): Int!
-  eventBind(sceneNumber: Int!, groupAddr: Int!, devAddr: Int!, elemAddr: Int!): Int!
+  addDevice(groupAddr: Int!, devUUID: String!, name: String!): Int!
+  removeDevice(devAddr: Int!, groupAddr: Int!): Int!
+  addGroup(name: String!): Int!
+  removeGroup(addr: Int!): Int!
   addUser: String!
+  setState(groupAddr: Int! ,elemAddr: Int!, value: String!): Boolean!
+  sceneStore(name: String! ,groupAddr: Int!): Int!
+  sceneRecall(sceneNumber: Int!, groupAddr: Int!): Int!
+  sceneDelete(sceneNumber: Int!, groupAddr: Int!): Int!
+  eventBind(sceneNumber: Int!, groupAddr: Int!, devAddr: Int!, elemAddr: Int!): Int!
 }
 
 type Query {
@@ -61,7 +61,7 @@ type Query {
 }
 
 type Subscription {
-  listGroup(addr: Int!): GroupResponse
+  listGroup(groupAddr: Int!): GroupResponse
   getState(groupAddr: Int!, devAddr: Int!, elemAddr: Int!): String!
   getEvents: Int!
 }

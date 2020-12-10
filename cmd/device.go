@@ -63,17 +63,17 @@ func AddDevice(store *model.Store, controller mesh.Controller, name string, uuid
 }
 
 // RemoveDevice sends are reset message and removes the device from the group
-func RemoveDevice(store *model.Store, controller mesh.Controller, groupAddr, addr uint16) {
+func RemoveDevice(store *model.Store, controller mesh.Controller, groupAddr, devAddr uint16) {
 	// Get device
 	group := store.Groups[groupAddr]
 	// Send reset payload
-	controller.ResetNode(addr)
+	controller.ResetNode(devAddr)
 	// Remove device from group
-	group.RemoveDevice(addr)
+	group.RemoveDevice(devAddr)
 }
 
 // SetState sends a state message to the element at the given address
-func SetState(store *model.Store, controller mesh.Controller, state []byte, groupAddr, addr uint16) {
+func SetState(store *model.Store, controller mesh.Controller, state []byte, groupAddr, elemAddr uint16) {
 	// Get appKey from group
 	group := store.Groups[groupAddr]
 	// Send State
@@ -81,7 +81,7 @@ func SetState(store *model.Store, controller mesh.Controller, state []byte, grou
 		// Send msg
 		controller.SendMessage(
 			state[0],
-			addr,
+			elemAddr,
 			group.KeyIndex,
 		)
 	}
@@ -95,17 +95,16 @@ func ReadStates(store *model.Store, groupAddr, devAddr, elemAddr uint16) []byte 
 }
 
 // UpdateState Sets the state of a elem on the device
-func UpdateState(store *model.Store, addr uint16, state byte) {
+func UpdateState(store *model.Store, elemAddr uint16, state byte) {
 	// Get refrence to device with element
 	for _, group := range store.Groups {
 		for _, device := range group.Devices {
-			for elemAddr := range device.Elements {
-				if elemAddr == addr {
+			for addr := range device.Elements {
+				if addr == elemAddr {
 					// Update element state
-					device.UpdateState(addr, []byte{state})
+					device.UpdateState(elemAddr, []byte{state})
 				}
 			}
-
 		}
 	}
 }
