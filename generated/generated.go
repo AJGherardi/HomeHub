@@ -87,7 +87,7 @@ type ComplexityRoot struct {
 		ConfigHub    func(childComplexity int) int
 		EventBind    func(childComplexity int, sceneNumber int, groupAddr int, devAddr int, elemAddr int) int
 		RemoveDevice func(childComplexity int, devAddr int, groupAddr int) int
-		RemoveGroup  func(childComplexity int, addr int) int
+		RemoveGroup  func(childComplexity int, groupAddr int) int
 		ResetHub     func(childComplexity int) int
 		SceneDelete  func(childComplexity int, sceneNumber int, groupAddr int) int
 		SceneRecall  func(childComplexity int, sceneNumber int, groupAddr int) int
@@ -133,7 +133,7 @@ type MutationResolver interface {
 	AddDevice(ctx context.Context, groupAddr int, devUUID string, name string) (int, error)
 	RemoveDevice(ctx context.Context, devAddr int, groupAddr int) (int, error)
 	AddGroup(ctx context.Context, name string) (int, error)
-	RemoveGroup(ctx context.Context, addr int) (int, error)
+	RemoveGroup(ctx context.Context, groupAddr int) (int, error)
 	AddUser(ctx context.Context) (string, error)
 	SetState(ctx context.Context, groupAddr int, elemAddr int, value string) (bool, error)
 	SceneStore(ctx context.Context, name string, groupAddr int) (int, error)
@@ -337,7 +337,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.RemoveGroup(childComplexity, args["addr"].(int)), true
+		return e.complexity.Mutation.RemoveGroup(childComplexity, args["groupAddr"].(int)), true
 
 	case "Mutation.resetHub":
 		if e.complexity.Mutation.ResetHub == nil {
@@ -595,7 +595,7 @@ type Mutation {
   addDevice(groupAddr: Int!, devUUID: String!, name: String!): Int!
   removeDevice(devAddr: Int!, groupAddr: Int!): Int!
   addGroup(name: String!): Int!
-  removeGroup(addr: Int!): Int!
+  removeGroup(groupAddr: Int!): Int!
   addUser: String!
   setState(groupAddr: Int! ,elemAddr: Int!, value: String!): Boolean!
   sceneStore(name: String! ,groupAddr: Int!): Int!
@@ -745,14 +745,14 @@ func (ec *executionContext) field_Mutation_removeGroup_args(ctx context.Context,
 	var err error
 	args := map[string]interface{}{}
 	var arg0 int
-	if tmp, ok := rawArgs["addr"]; ok {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("addr"))
+	if tmp, ok := rawArgs["groupAddr"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groupAddr"))
 		arg0, err = ec.unmarshalNInt2int(ctx, tmp)
 		if err != nil {
 			return nil, err
 		}
 	}
-	args["addr"] = arg0
+	args["groupAddr"] = arg0
 	return args, nil
 }
 
@@ -1664,7 +1664,7 @@ func (ec *executionContext) _Mutation_removeGroup(ctx context.Context, field gra
 	fc.Args = args
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().RemoveGroup(rctx, args["addr"].(int))
+		return ec.resolvers.Mutation().RemoveGroup(rctx, args["groupAddr"].(int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)

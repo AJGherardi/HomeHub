@@ -70,3 +70,14 @@ func SaveStore(store *model.Store) {
 		time.Sleep(500 * time.Millisecond)
 	}
 }
+
+// AddAccessKey generates and saves a Web Key
+func AddAccessKey(store *model.Store) []byte {
+	// Make a web key
+	webKey := make([]byte, 16)
+	rand.Read(webKey)
+	// Add webKey to netData
+	netData := store.NetData
+	netData.AddWebKey(webKey)
+	return webKey
+}

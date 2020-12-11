@@ -72,7 +72,7 @@ func New(
 					continue
 				default:
 				}
-				state := cmd.ReadStates(store, observer.groupAddr, observer.devAddr, observer.elemAddr)
+				state := cmd.ReadState(store, observer.groupAddr, observer.devAddr, observer.elemAddr)
 				observer.messages <- utils.EncodeBase64(state)
 			}
 		},

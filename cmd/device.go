@@ -87,8 +87,8 @@ func SetState(store *model.Store, controller mesh.Controller, state []byte, grou
 	}
 }
 
-// ReadStates Gets the state from a elem on a device
-func ReadStates(store *model.Store, groupAddr, devAddr, elemAddr uint16) []byte {
+// ReadState Gets the state from a elem on a device
+func ReadState(store *model.Store, groupAddr, devAddr, elemAddr uint16) []byte {
 	device := store.Groups[groupAddr].Devices[devAddr]
 	state := device.GetState(elemAddr)
 	return state

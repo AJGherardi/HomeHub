@@ -116,5 +116,5 @@ func main() {
 	srv.AddTransport(transport.POST{})
 	srv.Use(extension.Introspection{})
 	http.Handle("/graphql", srv)
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServeTLS("", "cert.pem", "key.pem", nil)
 }

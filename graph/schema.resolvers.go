@@ -1,8 +1,10 @@
 package graph
 
+// This file will be automatically regenerated based on the schema, any resolver implementations
+// will be copied through when generating and any unknown code will be moved to the end.
+
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	math "math/rand"
 
@@ -61,20 +63,15 @@ func (r *mutationResolver) AddGroup(ctx context.Context, name string) (int, erro
 	return int(groupAddr), nil
 }
 
-func (r *mutationResolver) RemoveGroup(ctx context.Context, addr int) (int, error) {
-	cmd.RemoveGroup(r.Store, r.Controller, uint16(addr))
-	return addr, nil
+func (r *mutationResolver) RemoveGroup(ctx context.Context, groupAddr int) (int, error) {
+	cmd.RemoveGroup(r.Store, r.Controller, uint16(groupAddr))
+	return groupAddr, nil
 }
 
 func (r *mutationResolver) AddUser(ctx context.Context) (string, error) {
 	// Remove user pin
 	r.UserPin = 000000
-	// Make a web key
-	webKey := make([]byte, 16)
-	rand.Read(webKey)
-	// Add webKey to netData
-	netData := r.Store.NetData
-	netData.AddWebKey(webKey)
+	webKey := cmd.AddAccessKey(r.Store)
 	return utils.EncodeBase64(webKey), nil
 }
 
@@ -142,25 +139,31 @@ func (r *subscriptionResolver) WatchGroup(ctx context.Context, groupAddr int) (<
 
 func (r *subscriptionResolver) WatchState(ctx context.Context, groupAddr int, devAddr int, elemAddr int) (<-chan string, error) {
 	stateChan := make(chan string, 1)
-	r.StateObservers = append(r.StateObservers, stateObserver{
-		groupAddr: uint16(groupAddr),
-		devAddr:   uint16(devAddr),
-		elemAddr:  uint16(elemAddr),
-		messages:  stateChan,
-		ctx:       ctx,
-	})
-	device := r.Store.Groups[uint16(groupAddr)].Devices[uint16(devAddr)]
-	state := device.GetState(uint16(elemAddr))
+	r.StateObservers = append(
+		r.StateObservers,
+		stateObserver{
+			groupAddr: uint16(groupAddr),
+			devAddr:   uint16(devAddr),
+			elemAddr:  uint16(elemAddr),
+			messages:  stateChan,
+			ctx:       ctx,
+		},
+	)
+	// Put initial result in chan
+	state := cmd.ReadState(r.Store, uint16(groupAddr), uint16(devAddr), uint16(elemAddr))
 	stateChan <- utils.EncodeBase64(state)
 	return stateChan, nil
 }
 
 func (r *subscriptionResolver) WatchEvents(ctx context.Context) (<-chan int, error) {
 	eventChan := make(chan int, 1)
-	r.EventObservers = append(r.EventObservers, eventObserver{
-		messages: eventChan,
-		ctx:      ctx,
-	})
+	r.EventObservers = append(
+		r.EventObservers,
+		eventObserver{
+			messages: eventChan,
+			ctx:      ctx,
+		},
+	)
 	return eventChan, nil
 }
 
