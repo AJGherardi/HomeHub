@@ -1,8 +1,5 @@
 package graph
 
-// This file will be automatically regenerated based on the schema, any resolver implementations
-// will be copied through when generating and any unknown code will be moved to the end.
-
 import (
 	"context"
 	"errors"
@@ -34,8 +31,8 @@ func (r *mutationResolver) ConfigHub(ctx context.Context) (string, error) {
 	if utils.CheckIfConfigured() {
 		return "", errors.New("already configured")
 	}
-	webKey := cmd.ConfigHub(r.Store, r.Controller)
-	return utils.EncodeBase64(webKey), nil
+	webKey, configErr := cmd.ConfigHub(r.Store, r.Controller)
+	return utils.EncodeBase64(webKey), configErr
 }
 
 func (r *mutationResolver) ResetHub(ctx context.Context) (bool, error) {
@@ -49,30 +46,30 @@ func (r *mutationResolver) ResetHub(ctx context.Context) (bool, error) {
 func (r *mutationResolver) AddDevice(ctx context.Context, groupAddr int, devUUID string, name string) (int, error) {
 	// Provision device
 	uuid := utils.DecodeBase64(devUUID)
-	nodeAddr := cmd.AddDevice(r.Store, r.Controller, name, uuid, uint16(groupAddr), r.NodeAdded)
-	return int(nodeAddr), nil
+	nodeAddr, addErr := cmd.AddDevice(r.Store, r.Controller, name, uuid, uint16(groupAddr), r.NodeAdded)
+	return int(nodeAddr), addErr
 }
 
 func (r *mutationResolver) RemoveDevice(ctx context.Context, devAddr int, groupAddr int) (int, error) {
-	cmd.RemoveDevice(r.Store, r.Controller, uint16(groupAddr), uint16(devAddr))
-	return devAddr, nil
+	removeErr := cmd.RemoveDevice(r.Store, r.Controller, uint16(groupAddr), uint16(devAddr))
+	return devAddr, removeErr
 }
 
 func (r *mutationResolver) AddGroup(ctx context.Context, name string) (int, error) {
-	groupAddr := cmd.AddGroup(r.Store, name)
-	return int(groupAddr), nil
+	groupAddr, addErr := cmd.AddGroup(r.Store, name)
+	return int(groupAddr), addErr
 }
 
 func (r *mutationResolver) RemoveGroup(ctx context.Context, groupAddr int) (int, error) {
-	cmd.RemoveGroup(r.Store, r.Controller, uint16(groupAddr))
-	return groupAddr, nil
+	removeErr := cmd.RemoveGroup(r.Store, r.Controller, uint16(groupAddr))
+	return groupAddr, removeErr
 }
 
 func (r *mutationResolver) AddUser(ctx context.Context) (string, error) {
 	// Remove user pin
 	r.UserPin = 000000
-	webKey := cmd.AddAccessKey(r.Store)
-	return utils.EncodeBase64(webKey), nil
+	webKey, addErr := cmd.AddAccessKey(r.Store)
+	return utils.EncodeBase64(webKey), addErr
 }
 
 func (r *mutationResolver) SetState(ctx context.Context, groupAddr int, elemAddr int, value string) (bool, error) {
@@ -82,23 +79,23 @@ func (r *mutationResolver) SetState(ctx context.Context, groupAddr int, elemAddr
 }
 
 func (r *mutationResolver) SceneStore(ctx context.Context, name string, groupAddr int) (int, error) {
-	sceneNumber := cmd.SceneStore(r.Store, r.Controller, uint16(groupAddr), name)
-	return int(sceneNumber), nil
+	sceneNumber, addErr := cmd.SceneStore(r.Store, r.Controller, uint16(groupAddr), name)
+	return int(sceneNumber), addErr
 }
 
 func (r *mutationResolver) SceneRecall(ctx context.Context, sceneNumber int, groupAddr int) (int, error) {
-	cmd.SceneRecall(r.Store, r.Controller, uint16(groupAddr), uint16(sceneNumber))
-	return sceneNumber, nil
+	recallErr := cmd.SceneRecall(r.Store, r.Controller, uint16(groupAddr), uint16(sceneNumber))
+	return sceneNumber, recallErr
 }
 
 func (r *mutationResolver) SceneDelete(ctx context.Context, sceneNumber int, groupAddr int) (int, error) {
-	cmd.SceneDelete(r.Store, r.Controller, uint16(groupAddr), uint16(sceneNumber))
-	return sceneNumber, nil
+	removeErr := cmd.SceneDelete(r.Store, r.Controller, uint16(groupAddr), uint16(sceneNumber))
+	return sceneNumber, removeErr
 }
 
 func (r *mutationResolver) EventBind(ctx context.Context, sceneNumber int, groupAddr int, devAddr int, elemAddr int) (int, error) {
-	cmd.EventBind(r.Store, r.Controller, uint16(groupAddr), uint16(devAddr), uint16(elemAddr), uint16(sceneNumber))
-	return sceneNumber, nil
+	bindErr := cmd.EventBind(r.Store, r.Controller, uint16(groupAddr), uint16(devAddr), uint16(elemAddr), uint16(sceneNumber))
+	return sceneNumber, bindErr
 }
 
 func (r *queryResolver) AvailableDevices(ctx context.Context) ([]string, error) {
@@ -129,7 +126,10 @@ func (r *queryResolver) GetUserPin(ctx context.Context) (int, error) {
 func (r *subscriptionResolver) WatchGroup(ctx context.Context, groupAddr int) (<-chan *generated.GroupResponse, error) {
 	groupChan := make(chan *generated.GroupResponse, 1)
 	// Put initial result in chan
-	group := r.Store.Groups[uint16(groupAddr)]
+	group, getErr := r.Store.GetGroup(uint16(groupAddr))
+	if getErr != nil {
+		return nil, getErr
+	}
 	groupChan <- &generated.GroupResponse{
 		Addr:  groupAddr,
 		Group: group,
@@ -139,6 +139,13 @@ func (r *subscriptionResolver) WatchGroup(ctx context.Context, groupAddr int) (<
 
 func (r *subscriptionResolver) WatchState(ctx context.Context, groupAddr int, devAddr int, elemAddr int) (<-chan string, error) {
 	stateChan := make(chan string, 1)
+
+	// Put initial result in chan
+	state, readErr := cmd.ReadState(r.Store, uint16(groupAddr), uint16(devAddr), uint16(elemAddr))
+	if readErr != nil {
+		return nil, readErr
+	}
+	// Add observer
 	r.StateObservers = append(
 		r.StateObservers,
 		stateObserver{
@@ -149,8 +156,6 @@ func (r *subscriptionResolver) WatchState(ctx context.Context, groupAddr int, de
 			ctx:       ctx,
 		},
 	)
-	// Put initial result in chan
-	state := cmd.ReadState(r.Store, uint16(groupAddr), uint16(devAddr), uint16(elemAddr))
 	stateChan <- utils.EncodeBase64(state)
 	return stateChan, nil
 }

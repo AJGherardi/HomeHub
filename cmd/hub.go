@@ -3,6 +3,7 @@ package cmd
 import (
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"os"
 	"time"
@@ -12,7 +13,7 @@ import (
 )
 
 // ConfigHub Initlizes the hub for the first time
-func ConfigHub(store *model.Store, controller mesh.Controller) []byte {
+func ConfigHub(store *model.Store, controller mesh.Controller) ([]byte, error) {
 	// Make a web key
 	webKey := make([]byte, 16)
 	rand.Read(webKey)
@@ -20,13 +21,19 @@ func ConfigHub(store *model.Store, controller mesh.Controller) []byte {
 	go SaveStore(store)
 	// Add and get net data
 	netData := model.MakeNetData(webKey)
-	store.NetData = &netData
+	store.SetNetData(netData)
 	// Setup controller
-	controller.Setup()
+	sendErr := controller.Setup()
+	if sendErr != nil {
+		return []byte{}, errors.New("Can not setup controller")
+	}
 	time.Sleep(100 * time.Millisecond)
 	// Add an app key
-	controller.AddKey(0x0000)
-	return webKey
+	sendErr = controller.AddKey(0x0000)
+	if sendErr != nil {
+		return []byte{}, errors.New("Can not setup controller")
+	}
+	return webKey, nil
 }
 
 // ResetHub Initlizes the hub for the first time
@@ -48,36 +55,55 @@ func ResetHub(store *model.Store, controller mesh.Controller) {
 }
 
 // SaveToFile writes data to the home.data file
-func SaveToFile(store model.Store) {
-	jsonData, _ := json.Marshal(store)
-	ioutil.WriteFile("home.data", jsonData, 0777)
+func SaveToFile(store model.Store) error {
+	jsonData, marshalErr := json.Marshal(store)
+	if marshalErr != nil {
+		return errors.New("Failed to marshal store")
+	}
+	writeErr := ioutil.WriteFile("home.data", jsonData, 0777)
+	if writeErr != nil {
+		return errors.New("Failed to write to file")
+	}
+	return nil
 }
 
 // ReadFromFile reads data from the home.data file
-func ReadFromFile() model.Store {
-	jsonData, _ := ioutil.ReadFile("home.data")
+func ReadFromFile() (model.Store, error) {
+	jsonData, readErr := ioutil.ReadFile("home.data")
+	if readErr != nil {
+		return model.Store{}, errors.New("Failed to read from file")
+	}
 	store := new(model.Store)
-	json.Unmarshal(jsonData, store)
-	return *store
+	unmarshalErr := json.Unmarshal(jsonData, store)
+	if unmarshalErr != nil {
+		return model.Store{}, errors.New("Failed to unmarshal store")
+	}
+	return *store, nil
 }
 
 // SaveStore handles updating the store file
 func SaveStore(store *model.Store) {
 	for {
+		jsonData, marshalErr := json.Marshal(store)
+		if marshalErr != nil {
+			continue
+		}
 		os.Remove("home.data")
-		jsonData, _ := json.Marshal(store)
 		ioutil.WriteFile("home.data", jsonData, 0777)
 		time.Sleep(500 * time.Millisecond)
 	}
 }
 
 // AddAccessKey generates and saves a Web Key
-func AddAccessKey(store *model.Store) []byte {
+func AddAccessKey(store *model.Store) ([]byte, error) {
 	// Make a web key
 	webKey := make([]byte, 16)
 	rand.Read(webKey)
 	// Add webKey to netData
-	netData := store.NetData
+	netData, getErr := store.GetNetData()
+	if getErr != nil {
+		return []byte{}, getErr
+	}
 	netData.AddWebKey(webKey)
-	return webKey
+	return webKey, nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -34,20 +35,29 @@ func main() {
 		Groups: map[uint16]*model.Group{},
 	}
 	// Open Mesh Controller and defer close
-	controller = mesh.Open()
+	controller, err := mesh.Open()
+	if err != nil {
+		panic("Can not open mesh controller")
+	}
 	defer controller.Close()
 	// Generate a cert
-	if _, err := os.Stat("cert.pem"); err != nil {
+	if _, err := os.Stat("home.data"); err != nil {
 		if os.IsNotExist(err) {
 			utils.WriteCert()
 		}
 	}
 	// Check if configured
 	if !utils.CheckIfConfigured() {
-		mdns, _ = zeroconf.Register("unprovisioned", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
+		mdns, err = zeroconf.Register("unprovisioned", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
+		if err != nil {
+			panic("Can not register mdns service")
+		}
 	} else {
-		mdns, _ = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
-		store = cmd.ReadFromFile()
+		mdns, err = zeroconf.Register("hub", "_alexandergherardi._tcp", "local.", 8080, nil, nil)
+		if err != nil {
+			panic("Can not register mdns service")
+		}
+		store, _ = cmd.ReadFromFile()
 		go cmd.SaveStore(&store)
 	}
 	// Serve the schema
@@ -58,30 +68,36 @@ func main() {
 		),
 	)
 	// Register read functions
-	go controller.Read(
-		// onSetupStatus
-		func() {},
-		// onAddKeyStatus
-		func(appIdx uint16) {},
-		// onUnprovisionedBeacon
-		func(uuid []byte) {
-			*unprovisionedNodes = append(*unprovisionedNodes, uuid)
-		},
-		// onNodeAdded
-		func(addr uint16) {
-			nodeAdded <- addr
-		},
-		// onState
-		func(addr uint16, state byte) {
-			cmd.UpdateState(&store, addr, state)
-			// Push new state
-			updateState()
-		},
-		// onEvent
-		func(addr uint16) {
-			publishEvents(addr)
-		},
-	)
+	go func() {
+		err := controller.Read(
+			// onSetupStatus
+			func() {},
+			// onAddKeyStatus
+			func(appIdx uint16) {},
+			// onUnprovisionedBeacon
+			func(uuid []byte) {
+				*unprovisionedNodes = append(*unprovisionedNodes, uuid)
+			},
+			// onNodeAdded
+			func(addr uint16) {
+				nodeAdded <- addr
+			},
+			// onState
+			func(addr uint16, state byte) {
+				cmd.UpdateState(&store, addr, state)
+				// Push new state
+				updateState()
+			},
+			// onEvent
+			func(addr uint16) {
+				publishEvents(addr)
+			},
+		)
+		if err != nil {
+			panic("Can not read from mesh controller")
+		}
+	}()
+
 	srv.AddTransport(transport.Websocket{
 		KeepAlivePingInterval: 10 * time.Second,
 		Upgrader: websocket.Upgrader{
@@ -116,5 +132,6 @@ func main() {
 	srv.AddTransport(transport.POST{})
 	srv.Use(extension.Introspection{})
 	http.Handle("/graphql", srv)
-	http.ListenAndServeTLS("", "cert.pem", "key.pem", nil)
+	err = http.ListenAndServeTLS("", "cert.pem", "key.pem", nil)
+	log.Fatal(err)
 }

@@ -1,5 +1,7 @@
 package model
 
+import "errors"
+
 // MakeDevice makes a new device with the given addr
 func MakeDevice(deviceType string, addr uint16) Device {
 	return Device{
@@ -39,13 +41,23 @@ func (d *Device) AddElem(name, stateType string, devAddr uint16) uint16 {
 }
 
 // UpdateState updates the state of the element with the given address
-func (d *Device) UpdateState(addr uint16, state []byte) {
-	d.Elements[addr].State = state
+func (d *Device) UpdateState(addr uint16, state []byte) error {
+	element := d.Elements[addr]
+	if element == nil {
+		return errors.New("No Element with given address")
+	}
+	// Set state
+	element.State = state
+	return nil
 }
 
 // GetState returns the state of a element
-func (d *Device) GetState(addr uint16) []byte {
-	return d.Elements[addr].State
+func (d *Device) GetState(addr uint16) ([]byte, error) {
+	element := d.Elements[addr]
+	if element == nil {
+		return []byte{}, errors.New("No Element with given address")
+	}
+	return element.State, nil
 }
 
 // Element holds an elements name, addr and its state
