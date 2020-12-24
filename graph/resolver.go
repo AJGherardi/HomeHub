@@ -3,10 +3,8 @@ package graph
 import (
 	"context"
 
-	mesh "github.com/AJGherardi/GoMeshController"
 	"github.com/AJGherardi/HomeHub/cmd"
 	"github.com/AJGherardi/HomeHub/generated"
-	"github.com/AJGherardi/HomeHub/model"
 	"github.com/AJGherardi/HomeHub/utils"
 	"github.com/grandcat/zeroconf"
 )
@@ -26,41 +24,32 @@ type stateObserver struct {
 
 // Resolver is the root of the schema
 type Resolver struct {
-	Store              *model.Store
-	Controller         mesh.Controller
-	Mdns               *zeroconf.Server
-	UnprovisionedNodes *[][]byte
-	NodeAdded          chan uint16
-	StateObservers     []stateObserver
-	EventObservers     []eventObserver
-	UserPin            int
+	Network        *cmd.Network
+	Mdns           *zeroconf.Server
+	StateObservers []stateObserver
+	EventObservers []eventObserver
+	UserPin        int
 }
 
 // New returns the servers config
 func New(
-	store *model.Store,
-	controller mesh.Controller,
-	nodeAdded chan uint16,
+	network *cmd.Network,
 	mdns *zeroconf.Server,
-	unprovisionedNodes *[][]byte,
-) (generated.Config, func(), func(addr uint16), *Resolver) {
+) (generated.Config, *Resolver, func(), func(addr uint16)) {
 	// Make resolver
 	resolver := Resolver{
-		Store:              store,
-		Controller:         controller,
-		NodeAdded:          nodeAdded,
-		Mdns:               mdns,
-		UnprovisionedNodes: unprovisionedNodes,
-		StateObservers:     make([]stateObserver, 0),
-		EventObservers:     make([]eventObserver, 0),
-		UserPin:            000000,
+		Network:        network,
+		Mdns:           mdns,
+		StateObservers: make([]stateObserver, 0),
+		EventObservers: make([]eventObserver, 0),
+		UserPin:        000000,
 	}
 	// Make config
 	c := generated.Config{
 		Resolvers: &resolver,
 	}
 	// Start updater function
-	return c,
+	return c, &resolver,
 		func() {
 			// Update observers
 			for _, observer := range resolver.StateObservers {
@@ -72,7 +61,7 @@ func New(
 					continue
 				default:
 				}
-				state, _ := cmd.ReadState(store, observer.groupAddr, observer.devAddr, observer.elemAddr)
+				state, _ := network.ReadState(observer.groupAddr, observer.devAddr, observer.elemAddr)
 				observer.messages <- utils.EncodeBase64(state)
 			}
 		},
@@ -89,6 +78,5 @@ func New(
 				}
 				observer.messages <- int(addr)
 			}
-		},
-		&resolver
+		}
 }

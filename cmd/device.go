@@ -5,25 +5,24 @@ import (
 	"reflect"
 	"time"
 
-	mesh "github.com/AJGherardi/GoMeshController"
 	"github.com/AJGherardi/HomeHub/model"
 )
 
 // AddDevice provisions configures and adds the device at the given uuid
-func AddDevice(store *model.Store, controller mesh.Controller, name string, uuid []byte, groupAddr uint16, nodeAdded chan uint16) (uint16, error) {
+func (n *Network) AddDevice(name string, uuid []byte, groupAddr uint16) (uint16, error) {
 	// Get group
-	group, getErr := store.GetGroup(groupAddr)
+	group, getErr := n.Store.GetGroup(groupAddr)
 	if getErr != nil {
 		return 0, getErr
 	}
 	// Provision device
-	if err := controller.Provision(uuid); err != nil {
+	if err := n.Controller.Provision(uuid); err != nil {
 		return 0, errors.New("Device Setup Failed")
 	}
 	// Wait for node added
 	var nodeAddr uint16
 	select {
-	case addr := <-nodeAdded:
+	case addr := <-n.NodeAdded:
 		nodeAddr = addr
 	case <-time.After(10 * time.Second):
 		// Timeout after 10 seconds
@@ -45,31 +44,31 @@ func AddDevice(store *model.Store, controller mesh.Controller, name string, uuid
 		)
 	}
 	// Configure Device
-	sendErr := controller.ConfigureNode(nodeAddr, group.KeyIndex)
+	sendErr := n.Controller.ConfigureNode(nodeAddr, group.KeyIndex)
 	time.Sleep(100 * time.Millisecond)
 	// If device is a 2 plug outlet
 	if reflect.DeepEqual(uuid[6:8], []byte{0x00, 0x02}) {
 		// Set type and add elements
 		elemAddr0 := device.AddElem(name+"-0", "onoff", nodeAddr)
-		sendErr = controller.ConfigureElem(groupAddr, nodeAddr, elemAddr0, group.KeyIndex)
+		sendErr = n.Controller.ConfigureElem(groupAddr, nodeAddr, elemAddr0, group.KeyIndex)
 		time.Sleep(100 * time.Millisecond)
 		elemAddr1 := device.AddElem(name+"-1", "onoff", nodeAddr)
-		sendErr = controller.ConfigureElem(groupAddr, nodeAddr, elemAddr1, group.KeyIndex)
+		sendErr = n.Controller.ConfigureElem(groupAddr, nodeAddr, elemAddr1, group.KeyIndex)
 	}
 	// If device is a button
 	if reflect.DeepEqual(uuid[6:8], []byte{0x00, 0x01}) {
 		// Set type and add elements
 		elemAddr0 := device.AddElem(name+"-0", "event", nodeAddr)
-		sendErr = controller.ConfigureElem(groupAddr, nodeAddr, elemAddr0, group.KeyIndex)
+		sendErr = n.Controller.ConfigureElem(groupAddr, nodeAddr, elemAddr0, group.KeyIndex)
 		time.Sleep(1000 * time.Millisecond)
 		elemAddr1 := device.AddElem(name+"-1", "event", nodeAddr)
-		sendErr = controller.ConfigureElem(groupAddr, nodeAddr, elemAddr1, group.KeyIndex)
+		sendErr = n.Controller.ConfigureElem(groupAddr, nodeAddr, elemAddr1, group.KeyIndex)
 		time.Sleep(3000 * time.Millisecond)
 		elemAddr2 := device.AddElem(name+"-2", "event", nodeAddr)
-		sendErr = controller.ConfigureElem(groupAddr, nodeAddr, elemAddr2, group.KeyIndex)
+		sendErr = n.Controller.ConfigureElem(groupAddr, nodeAddr, elemAddr2, group.KeyIndex)
 		time.Sleep(3000 * time.Millisecond)
 		elemAddr3 := device.AddElem(name+"-3", "event", nodeAddr)
-		sendErr = controller.ConfigureElem(groupAddr, nodeAddr, elemAddr3, group.KeyIndex)
+		sendErr = n.Controller.ConfigureElem(groupAddr, nodeAddr, elemAddr3, group.KeyIndex)
 	}
 	// If device is not setup do not procead
 	if sendErr != nil {
@@ -81,14 +80,14 @@ func AddDevice(store *model.Store, controller mesh.Controller, name string, uuid
 }
 
 // RemoveDevice sends are reset message and removes the device from the group
-func RemoveDevice(store *model.Store, controller mesh.Controller, groupAddr, devAddr uint16) error {
+func (n *Network) RemoveDevice(groupAddr, devAddr uint16) error {
 	// Get group
-	group, getErr := store.GetGroup(groupAddr)
+	group, getErr := n.Store.GetGroup(groupAddr)
 	if getErr != nil {
 		return getErr
 	}
 	// Send reset payload
-	sendErr := controller.ResetNode(devAddr)
+	sendErr := n.Controller.ResetNode(devAddr)
 	if sendErr != nil {
 		return errors.New("Failed to remove device")
 	}
@@ -98,16 +97,16 @@ func RemoveDevice(store *model.Store, controller mesh.Controller, groupAddr, dev
 }
 
 // SetState sends a state message to the element at the given address
-func SetState(store *model.Store, controller mesh.Controller, state []byte, groupAddr, elemAddr uint16) error {
+func (n *Network) SetState(state []byte, groupAddr, elemAddr uint16) error {
 	// Get group
-	group, getErr := store.GetGroup(groupAddr)
+	group, getErr := n.Store.GetGroup(groupAddr)
 	if getErr != nil {
 		return getErr
 	}
 	// Send State
 	if true {
 		// Send msg
-		sendErr := controller.SendMessage(
+		sendErr := n.Controller.SendMessage(
 			state[0],
 			elemAddr,
 			group.KeyIndex,
@@ -120,9 +119,9 @@ func SetState(store *model.Store, controller mesh.Controller, state []byte, grou
 }
 
 // ReadState Gets the state from a elem on a device
-func ReadState(store *model.Store, groupAddr, devAddr, elemAddr uint16) ([]byte, error) {
+func (n *Network) ReadState(groupAddr, devAddr, elemAddr uint16) ([]byte, error) {
 	// Get group
-	group, getErr := store.GetGroup(groupAddr)
+	group, getErr := n.Store.GetGroup(groupAddr)
 	if getErr != nil {
 		return []byte{}, getErr
 	}
@@ -136,9 +135,9 @@ func ReadState(store *model.Store, groupAddr, devAddr, elemAddr uint16) ([]byte,
 }
 
 // UpdateState Sets the state of a elem on the device
-func UpdateState(store *model.Store, elemAddr uint16, state byte) error {
+func (n *Network) UpdateState(elemAddr uint16, state byte) error {
 	// Get refrence to device with element
-	for _, group := range store.Groups {
+	for _, group := range n.Store.Groups {
 		for _, device := range group.Devices {
 			for addr := range device.Elements {
 				if addr == elemAddr {

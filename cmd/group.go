@@ -1,43 +1,43 @@
 package cmd
 
 import (
-	mesh "github.com/AJGherardi/GoMeshController"
+	"errors"
+
 	"github.com/AJGherardi/HomeHub/model"
 )
 
 // RemoveGroup deletes the group from the store and sends reset messages to all the devices in the group
-func RemoveGroup(store *model.Store, controller mesh.Controller, groupAddr uint16) error {
+func (n *Network) RemoveGroup(groupAddr uint16) error {
 	// Get groupAddr
-	group, getErr := store.GetGroup(groupAddr)
+	group, getErr := n.Store.GetGroup(groupAddr)
 	if getErr != nil {
 		return getErr
 	}
 	// Reset devices
 	var sendErr error
 	for addr := range group.Devices {
-		err := controller.ResetNode(addr)
+		err := n.Controller.ResetNode(addr)
 		if err != nil {
 			sendErr = err
 		}
 	}
 	// Remove the group
-	delete(store.Groups, groupAddr)
+	delete(n.Store.Groups, groupAddr)
 	return sendErr
 }
 
 // AddGroup creates a group in the store with the given name
-func AddGroup(store *model.Store, name string) (uint16, error) {
-	netData, getErr := store.GetNetData()
-	if getErr != nil {
-		return 0, getErr
+func (n *Network) AddGroup(name string) (uint16, error) {
+	if n.Store.GetConfigured() != false {
+		return 0, errors.New("Not Configured")
 	}
 	// Get net values
-	groupAddr := netData.GetNextGroupAddr()
+	groupAddr := n.Store.GetNextGroupAddr()
 	// Add a group
 	group := model.MakeGroup(name, groupAddr, 0x0000)
 	// Add group to store
-	store.AddGroup(groupAddr, group)
+	n.Store.AddGroup(groupAddr, group)
 	// Update net data
-	netData.IncrementNextGroupAddr()
+	n.Store.IncrementNextGroupAddr()
 	return groupAddr, nil
 }

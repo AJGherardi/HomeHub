@@ -3,26 +3,22 @@ package cmd
 import (
 	"encoding/binary"
 	"errors"
-
-	mesh "github.com/AJGherardi/GoMeshController"
-	"github.com/AJGherardi/HomeHub/model"
 )
 
 // SceneStore adds a scene to a group and sends a SceneStore message
-func SceneStore(store *model.Store, controller mesh.Controller, groupAddr uint16, name string) (uint16, error) {
-	group := store.Groups[groupAddr]
-	group, getErr := store.GetGroup(groupAddr)
-	if getErr != nil {
-		return 0, getErr
+func (n *Network) SceneStore(groupAddr uint16, name string) (uint16, error) {
+	if n.Store.GetConfigured() != false {
+		return 0, errors.New("Not Configured")
 	}
-	netData, getErr := store.GetNetData()
+	group := n.Store.Groups[groupAddr]
+	group, getErr := n.Store.GetGroup(groupAddr)
 	if getErr != nil {
 		return 0, getErr
 	}
 	// Get and increment next scene number
-	sceneNumber := netData.GetNextSceneNumber()
-	netData.IncrementNextSceneNumber()
-	sendErr := controller.SendStoreMessage(sceneNumber, groupAddr, group.KeyIndex)
+	sceneNumber := n.Store.GetNextSceneNumber()
+	n.Store.IncrementNextSceneNumber()
+	sendErr := n.Controller.SendStoreMessage(sceneNumber, groupAddr, group.KeyIndex)
 	// Send scene store message
 	if sendErr != nil {
 		return 0, errors.New("Failed to send scene store message")
@@ -33,12 +29,12 @@ func SceneStore(store *model.Store, controller mesh.Controller, groupAddr uint16
 }
 
 // SceneRecall sends a recall message to devices in the group
-func SceneRecall(store *model.Store, controller mesh.Controller, groupAddr, sceneNumber uint16) error {
-	group, getErr := store.GetGroup(groupAddr)
+func (n *Network) SceneRecall(groupAddr, sceneNumber uint16) error {
+	group, getErr := n.Store.GetGroup(groupAddr)
 	if getErr != nil {
 		return getErr
 	}
-	sendErr := controller.SendRecallMessage(sceneNumber, groupAddr, group.KeyIndex)
+	sendErr := n.Controller.SendRecallMessage(sceneNumber, groupAddr, group.KeyIndex)
 	if sendErr != nil {
 		return errors.New("Failed to send scene recall message")
 	}
@@ -46,12 +42,12 @@ func SceneRecall(store *model.Store, controller mesh.Controller, groupAddr, scen
 }
 
 // SceneDelete sends a delete message to devices in the group and removes the scene from the group
-func SceneDelete(store *model.Store, controller mesh.Controller, groupAddr, sceneNumber uint16) error {
-	group, getErr := store.GetGroup(groupAddr)
+func (n *Network) SceneDelete(groupAddr, sceneNumber uint16) error {
+	group, getErr := n.Store.GetGroup(groupAddr)
 	if getErr != nil {
 		return getErr
 	}
-	sendErr := controller.SendDeleteMessage(sceneNumber, groupAddr, group.KeyIndex)
+	sendErr := n.Controller.SendDeleteMessage(sceneNumber, groupAddr, group.KeyIndex)
 	if sendErr != nil {
 		return errors.New("Failed to send scene delete message")
 	}
@@ -60,8 +56,8 @@ func SceneDelete(store *model.Store, controller mesh.Controller, groupAddr, scen
 }
 
 // EventBind sends a event bind msg to the element and sets the elements state to the scene number
-func EventBind(store *model.Store, controller mesh.Controller, groupAddr, devAddr, elemAddr, sceneNumber uint16) error {
-	group, getErr := store.GetGroup(groupAddr)
+func (n *Network) EventBind(groupAddr, devAddr, elemAddr, sceneNumber uint16) error {
+	group, getErr := n.Store.GetGroup(groupAddr)
 	if getErr != nil {
 		return getErr
 	}
@@ -72,7 +68,7 @@ func EventBind(store *model.Store, controller mesh.Controller, groupAddr, devAdd
 	// Convert sceneNumber to bytes for device state struct
 	var sceneNumberBytes []byte
 	binary.BigEndian.PutUint16(sceneNumberBytes, sceneNumber)
-	sendErr := controller.SendBindMessage(sceneNumber, elemAddr, group.KeyIndex)
+	sendErr := n.Controller.SendBindMessage(sceneNumber, elemAddr, group.KeyIndex)
 	if sendErr != nil {
 		return errors.New("Failed to send event bind message")
 	}

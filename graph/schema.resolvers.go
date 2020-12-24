@@ -5,7 +5,6 @@ import (
 	"errors"
 	math "math/rand"
 
-	"github.com/AJGherardi/HomeHub/cmd"
 	"github.com/AJGherardi/HomeHub/generated"
 	"github.com/AJGherardi/HomeHub/model"
 	"github.com/AJGherardi/HomeHub/utils"
@@ -28,79 +27,79 @@ func (r *groupResolver) Devices(ctx context.Context, obj *model.Group) ([]*gener
 }
 
 func (r *mutationResolver) ConfigHub(ctx context.Context) (string, error) {
-	if utils.CheckIfConfigured() {
+	if r.Network.CheckIfConfigured() {
 		return "", errors.New("already configured")
 	}
-	webKey, configErr := cmd.ConfigHub(r.Store, r.Controller)
+	webKey, configErr := r.Network.ConfigHub()
 	return utils.EncodeBase64(webKey), configErr
 }
 
 func (r *mutationResolver) ResetHub(ctx context.Context) (bool, error) {
-	if !utils.CheckIfConfigured() {
+	if !r.Network.CheckIfConfigured() {
 		return false, errors.New("not configured")
 	}
-	cmd.ResetHub(r.Store, r.Controller)
+	r.Network.ResetHub()
 	return true, nil
 }
 
 func (r *mutationResolver) AddDevice(ctx context.Context, groupAddr int, devUUID string, name string) (int, error) {
 	// Provision device
 	uuid := utils.DecodeBase64(devUUID)
-	nodeAddr, addErr := cmd.AddDevice(r.Store, r.Controller, name, uuid, uint16(groupAddr), r.NodeAdded)
+	nodeAddr, addErr := r.Network.AddDevice(name, uuid, uint16(groupAddr))
 	return int(nodeAddr), addErr
 }
 
 func (r *mutationResolver) RemoveDevice(ctx context.Context, devAddr int, groupAddr int) (int, error) {
-	removeErr := cmd.RemoveDevice(r.Store, r.Controller, uint16(groupAddr), uint16(devAddr))
+	removeErr := r.Network.RemoveDevice(uint16(groupAddr), uint16(devAddr))
 	return devAddr, removeErr
 }
 
 func (r *mutationResolver) AddGroup(ctx context.Context, name string) (int, error) {
-	groupAddr, addErr := cmd.AddGroup(r.Store, name)
+	groupAddr, addErr := r.Network.AddGroup(name)
 	return int(groupAddr), addErr
 }
 
 func (r *mutationResolver) RemoveGroup(ctx context.Context, groupAddr int) (int, error) {
-	removeErr := cmd.RemoveGroup(r.Store, r.Controller, uint16(groupAddr))
+	removeErr := r.Network.RemoveGroup(uint16(groupAddr))
 	return groupAddr, removeErr
 }
 
 func (r *mutationResolver) AddUser(ctx context.Context) (string, error) {
 	// Remove user pin
 	r.UserPin = 000000
-	webKey, addErr := cmd.AddAccessKey(r.Store)
+	webKey, addErr := r.Network.AddAccessKey()
 	return utils.EncodeBase64(webKey), addErr
 }
 
 func (r *mutationResolver) SetState(ctx context.Context, groupAddr int, elemAddr int, value string) (bool, error) {
 	state := utils.DecodeBase64(value)
-	cmd.SetState(r.Store, r.Controller, state, uint16(groupAddr), uint16(elemAddr))
+	r.Network.SetState(state, uint16(groupAddr), uint16(elemAddr))
 	return true, nil
 }
 
 func (r *mutationResolver) SceneStore(ctx context.Context, name string, groupAddr int) (int, error) {
-	sceneNumber, addErr := cmd.SceneStore(r.Store, r.Controller, uint16(groupAddr), name)
+	sceneNumber, addErr := r.Network.SceneStore(uint16(groupAddr), name)
 	return int(sceneNumber), addErr
 }
 
 func (r *mutationResolver) SceneRecall(ctx context.Context, sceneNumber int, groupAddr int) (int, error) {
-	recallErr := cmd.SceneRecall(r.Store, r.Controller, uint16(groupAddr), uint16(sceneNumber))
+	recallErr := r.Network.SceneRecall(uint16(groupAddr), uint16(sceneNumber))
 	return sceneNumber, recallErr
 }
 
 func (r *mutationResolver) SceneDelete(ctx context.Context, sceneNumber int, groupAddr int) (int, error) {
-	removeErr := cmd.SceneDelete(r.Store, r.Controller, uint16(groupAddr), uint16(sceneNumber))
+	removeErr := r.Network.SceneDelete(uint16(groupAddr), uint16(sceneNumber))
 	return sceneNumber, removeErr
 }
 
 func (r *mutationResolver) EventBind(ctx context.Context, sceneNumber int, groupAddr int, devAddr int, elemAddr int) (int, error) {
-	bindErr := cmd.EventBind(r.Store, r.Controller, uint16(groupAddr), uint16(devAddr), uint16(elemAddr), uint16(sceneNumber))
+	bindErr := r.Network.EventBind(uint16(groupAddr), uint16(devAddr), uint16(elemAddr), uint16(sceneNumber))
 	return sceneNumber, bindErr
 }
 
 func (r *queryResolver) AvailableDevices(ctx context.Context) ([]string, error) {
 	uuids := make([]string, 0)
-	for _, uuid := range *r.UnprovisionedNodes {
+	for _, uuid := range *r.Network.UnprovisionedNodes {
 		b64 := utils.EncodeBase64(uuid)
 		uuids = append(uuids, b64)
 	}
@@ -108,7 +107,7 @@ func (r *queryResolver) AvailableDevices(ctx context.Context) ([]string, error) 
 }
 
 func (r *queryResolver) AvailableGroups(ctx context.Context) ([]*generated.GroupResponse, error) {
-	groups := r.Store.Groups
+	groups := r.Network.Store.Groups
 	groupPointers := make([]*generated.GroupResponse, 0)
 	for i := range groups {
 		groupPointers = append(groupPointers, &generated.GroupResponse{Addr: int(i), Group: groups[i]})
@@ -126,7 +125,7 @@ func (r *queryResolver) GetUserPin(ctx context.Context) (int, error) {
 func (r *subscriptionResolver) WatchGroup(ctx context.Context, groupAddr int) (<-chan *generated.GroupResponse, error) {
 	groupChan := make(chan *generated.GroupResponse, 1)
 	// Put initial result in chan
-	group, getErr := r.Store.GetGroup(uint16(groupAddr))
+	group, getErr := r.Network.Store.GetGroup(uint16(groupAddr))
 	if getErr != nil {
 		return nil, getErr
 	}
@@ -141,7 +140,7 @@ func (r *subscriptionResolver) WatchState(ctx context.Context, groupAddr int, de
 	stateChan := make(chan string, 1)
 
 	// Put initial result in chan
-	state, readErr := cmd.ReadState(r.Store, uint16(groupAddr), uint16(devAddr), uint16(elemAddr))
+	state, readErr := r.Network.ReadState(uint16(groupAddr), uint16(devAddr), uint16(elemAddr))
 	if readErr != nil {
 		return nil, readErr
 	}
