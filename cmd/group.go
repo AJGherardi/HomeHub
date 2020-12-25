@@ -22,7 +22,7 @@ func (n *Network) RemoveGroup(groupAddr uint16) error {
 		}
 	}
 	// Remove the group
-	delete(n.Store.Groups, groupAddr)
+	n.Store.RemoveGroup(groupAddr)
 	return sendErr
 }
 

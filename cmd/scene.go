@@ -51,7 +51,7 @@ func (n *Network) SceneDelete(groupAddr, sceneNumber uint16) error {
 	if sendErr != nil {
 		return errors.New("Failed to send scene delete message")
 	}
-	group.DeleteScene(sceneNumber)
+	group.RemoveScene(sceneNumber)
 	return nil
 }
 

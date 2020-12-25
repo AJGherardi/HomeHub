@@ -55,8 +55,8 @@ func (g *Group) AddScene(name string, number uint16) {
 
 }
 
-// DeleteScene removes a scene from the group
-func (g *Group) DeleteScene(number uint16) {
+// RemoveScene removes a scene from the group
+func (g *Group) RemoveScene(number uint16) {
 	delete(g.Scenes, number)
 }
 

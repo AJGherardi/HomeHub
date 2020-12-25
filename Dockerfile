@@ -8,6 +8,8 @@ RUN apt update
 
 RUN apt install -y libusb-1.0-0-dev
 
+WORKDIR /app/main
+
 RUN go build -o /bin/home
 
 FROM debian:unstable-slim

@@ -39,6 +39,11 @@ func (s *Store) AddGroup(addr uint16, group Group) {
 	s.Groups[addr] = &group
 }
 
+// RemoveGroup removes the group from the store
+func (s *Store) RemoveGroup(addr uint16) {
+	delete(s.Groups, addr)
+}
+
 // GetNextGroupAddr returns the next group address
 func (s *Store) GetNextGroupAddr() uint16 {
 	return s.NextGroupAddr
