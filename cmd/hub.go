@@ -137,6 +137,16 @@ func (n *Network) AddAccessKey() ([]byte, error) {
 	return webKey, nil
 }
 
+// CheckAccessKey checks the access key using know access keys
+func (n *Network) CheckAccessKey(webKey []byte) bool {
+	return n.Store.CheckWebKey(webKey)
+}
+
+// GetUnprovisionedNodes returns a list of detected unprovisioned nodes
+func (n *Network) GetUnprovisionedNodes() [][]byte {
+	return *n.UnprovisionedNodes
+}
+
 // Close closes all of the resorces that the network depends on
 func (n *Network) Close() {
 	n.Controller.Close()

@@ -28,8 +28,8 @@ func (n *Network) RemoveGroup(groupAddr uint16) error {
 
 // AddGroup creates a group in the store with the given name
 func (n *Network) AddGroup(name string) (uint16, error) {
-	if n.Store.GetConfigured() != false {
-		return 0, errors.New("Not Configured")
+	if n.Store.GetConfigured() == false {
+		return 0, errors.New("Not configured")
 	}
 	// Get net values
 	groupAddr := n.Store.GetNextGroupAddr()
@@ -40,4 +40,15 @@ func (n *Network) AddGroup(name string) (uint16, error) {
 	// Update net data
 	n.Store.IncrementNextGroupAddr()
 	return groupAddr, nil
+}
+
+// GetGroups returns a map of refreences to all of the groups in the network
+func (n *Network) GetGroups() map[uint16]*model.Group {
+	return n.Store.Groups
+}
+
+// GetGroup returns a refrence to the group with the given address
+func (n *Network) GetGroup(groupAddr uint16) (*model.Group, error) {
+	group, err := n.Store.GetGroup(groupAddr)
+	return group, err
 }

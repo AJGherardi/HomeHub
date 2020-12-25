@@ -38,6 +38,17 @@ func toSceneResponseSlice(scenes map[uint16]*model.Scene) []*generated.SceneResp
 	return sceneResponses
 }
 
+func toGroupResponseSlice(groups map[uint16]*model.Group) []*generated.GroupResponse {
+	groupResponses := []*generated.GroupResponse{}
+	for i := range groups {
+		groupResponses = append(
+			groupResponses,
+			toGroupResponse(i, groups[i]),
+		)
+	}
+	return groupResponses
+}
+
 func toElementResponse(addr uint16, element *model.Element) *generated.ElementResponse {
 	return &generated.ElementResponse{Addr: int(addr), Element: element}
 }
@@ -48,4 +59,8 @@ func toDeviceResponse(addr uint16, device *model.Device) *generated.DeviceRespon
 
 func toSceneResponse(number uint16, scene *model.Scene) *generated.SceneResponse {
 	return &generated.SceneResponse{Number: int(number), Scene: scene}
+}
+
+func toGroupResponse(addr uint16, group *model.Group) *generated.GroupResponse {
+	return &generated.GroupResponse{Addr: int(addr), Group: group}
 }

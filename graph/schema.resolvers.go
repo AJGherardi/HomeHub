@@ -28,7 +28,7 @@ func (r *groupResolver) Devices(ctx context.Context, obj *model.Group) ([]*gener
 
 func (r *mutationResolver) ConfigHub(ctx context.Context) (string, error) {
 	if r.Network.CheckIfConfigured() {
-		return "", errors.New("already configured")
+		return "", errors.New("Already configured")
 	}
 	webKey, configErr := r.Network.ConfigHub()
 	return utils.EncodeBase64(webKey), configErr
@@ -36,7 +36,7 @@ func (r *mutationResolver) ConfigHub(ctx context.Context) (string, error) {
 
 func (r *mutationResolver) ResetHub(ctx context.Context) (bool, error) {
 	if !r.Network.CheckIfConfigured() {
-		return false, errors.New("not configured")
+		return false, errors.New("Not configured")
 	}
 	r.Network.ResetHub()
 	return true, nil
@@ -99,7 +99,8 @@ func (r *mutationResolver) EventBind(ctx context.Context, sceneNumber int, group
 
 func (r *queryResolver) AvailableDevices(ctx context.Context) ([]string, error) {
 	uuids := make([]string, 0)
-	for _, uuid := range *r.Network.UnprovisionedNodes {
+	// Encode uuids of unprovisioned nodes as base64
+	for _, uuid := range r.Network.GetUnprovisionedNodes() {
 		b64 := utils.EncodeBase64(uuid)
 		uuids = append(uuids, b64)
 	}
@@ -107,12 +108,8 @@ func (r *queryResolver) AvailableDevices(ctx context.Context) ([]string, error) 
 }
 
 func (r *queryResolver) AvailableGroups(ctx context.Context) ([]*generated.GroupResponse, error) {
-	groups := r.Network.Store.Groups
-	groupPointers := make([]*generated.GroupResponse, 0)
-	for i := range groups {
-		groupPointers = append(groupPointers, &generated.GroupResponse{Addr: int(i), Group: groups[i]})
-	}
-	return groupPointers, nil
+	groups := r.Network.GetGroups()
+	return toGroupResponseSlice(groups), nil
 }
 
 func (r *queryResolver) GetUserPin(ctx context.Context) (int, error) {
@@ -123,22 +120,19 @@ func (r *queryResolver) GetUserPin(ctx context.Context) (int, error) {
 }
 
 func (r *subscriptionResolver) WatchGroup(ctx context.Context, groupAddr int) (<-chan *generated.GroupResponse, error) {
+	// Make a chan for updates
 	groupChan := make(chan *generated.GroupResponse, 1)
 	// Put initial result in chan
-	group, getErr := r.Network.Store.GetGroup(uint16(groupAddr))
+	group, getErr := r.Network.GetGroup(uint16(groupAddr))
 	if getErr != nil {
 		return nil, getErr
 	}
-	groupChan <- &generated.GroupResponse{
-		Addr:  groupAddr,
-		Group: group,
-	}
+	groupChan <- toGroupResponse(uint16(groupAddr), group)
 	return groupChan, nil
 }
 
 func (r *subscriptionResolver) WatchState(ctx context.Context, groupAddr int, devAddr int, elemAddr int) (<-chan string, error) {
 	stateChan := make(chan string, 1)
-
 	// Put initial result in chan
 	state, readErr := r.Network.ReadState(uint16(groupAddr), uint16(devAddr), uint16(elemAddr))
 	if readErr != nil {

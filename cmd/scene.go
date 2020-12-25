@@ -7,7 +7,7 @@ import (
 
 // SceneStore adds a scene to a group and sends a SceneStore message
 func (n *Network) SceneStore(groupAddr uint16, name string) (uint16, error) {
-	if n.Store.GetConfigured() != false {
+	if n.Store.GetConfigured() == false {
 		return 0, errors.New("Not Configured")
 	}
 	group := n.Store.Groups[groupAddr]
