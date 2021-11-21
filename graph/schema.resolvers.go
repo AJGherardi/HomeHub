@@ -113,7 +113,7 @@ func (r *queryResolver) AvailableGroups(ctx context.Context) ([]*generated.Group
 }
 
 func (r *queryResolver) GetUserPin(ctx context.Context) (int, error) {
-	// Generate a 6 digt random number
+	// Generate a 6 digit random number
 	pin := math.Intn(1000000)
 	r.UserPin = pin
 	return r.UserPin, nil

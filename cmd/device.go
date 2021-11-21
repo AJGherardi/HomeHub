@@ -70,7 +70,7 @@ func (n *Network) AddDevice(name string, uuid []byte, groupAddr uint16) (uint16,
 		elemAddr3 := device.AddElem(name+"-3", "event", nodeAddr)
 		sendErr = n.Controller.ConfigureElem(groupAddr, nodeAddr, elemAddr3, group.KeyIndex)
 	}
-	// If device is not setup do not procead
+	// If device is not setup do not proceed
 	if sendErr != nil {
 		return 0, errors.New("Device Setup Failed")
 	}
@@ -136,7 +136,7 @@ func (n *Network) ReadState(groupAddr, devAddr, elemAddr uint16) ([]byte, error)
 
 // UpdateState Sets the state of a elem on the device
 func (n *Network) UpdateState(elemAddr uint16, state byte) error {
-	// Get refrence to device with element
+	// Get reference to device with element
 	for _, group := range n.Store.Groups {
 		for _, device := range group.Devices {
 			for addr := range device.Elements {

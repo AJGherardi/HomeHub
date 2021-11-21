@@ -42,12 +42,12 @@ func (n *Network) AddGroup(name string) (uint16, error) {
 	return groupAddr, nil
 }
 
-// GetGroups returns a map of refreences to all of the groups in the network
+// GetGroups returns a map of references to all of the groups in the network
 func (n *Network) GetGroups() map[uint16]*model.Group {
 	return n.Store.Groups
 }
 
-// GetGroup returns a refrence to the group with the given address
+// GetGroup returns a reference to the group with the given address
 func (n *Network) GetGroup(groupAddr uint16) (*model.Group, error) {
 	group, err := n.Store.GetGroup(groupAddr)
 	return group, err

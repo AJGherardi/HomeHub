@@ -57,7 +57,7 @@ func New(
 				select {
 				case <-observer.ctx.Done():
 					// If so remove observer and continue
-					// utils.Delete(&resolver.StateObservers, i)
+					utils.Delete(&resolver.StateObservers, i)
 					continue
 				default:
 				}

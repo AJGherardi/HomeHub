@@ -20,13 +20,13 @@ type Network struct {
 	NodeAdded          chan uint16
 }
 
-// ReadFunc is a fuction that can be called on a seprate thred that will read from the mesh controller
+// ReadFunc is a function that can be called on a seprate thread that will read from the mesh controller
 type ReadFunc func(updateState func(), publishEvents func(addr uint16))
 
-// WriteFunc is a fuction that writes the store to a file every 500 ms
+// WriteFunc is a function that writes the store to a file every 500 ms
 type WriteFunc func()
 
-// MakeNetwork opens all resources neaded to run the network and returns read and write functions that need to be run on their own goroutines
+// MakeNetwork opens all resources needed to run the network and returns read and write functions that need to be run on their own goroutines
 func MakeNetwork() (Network, ReadFunc, WriteFunc) {
 	// Try to read the store from a file
 	store, err := ReadFromFile()
@@ -80,12 +80,12 @@ func MakeNetwork() (Network, ReadFunc, WriteFunc) {
 		func() { SaveStore(&store) }
 }
 
-// ConfigHub Initlizes the hub for the first time
+// ConfigHub Initializes the hub for the first time
 func (n *Network) ConfigHub() ([]byte, error) {
 	// Make a web key
 	webKey := make([]byte, 16)
 	rand.Read(webKey)
-	// Start data save threed
+	// Start data save thread
 	go SaveStore(n.Store)
 	// Add webKey and mark as configured
 	n.Store.AddWebKey(webKey)
@@ -104,7 +104,7 @@ func (n *Network) ConfigHub() ([]byte, error) {
 	return webKey, nil
 }
 
-// ResetHub Initlizes the hub for the first time
+// ResetHub Initializes the hub for the first time
 func (n *Network) ResetHub() {
 	// Remove all devices
 	groups := n.Store.Groups
@@ -147,7 +147,7 @@ func (n *Network) GetUnprovisionedNodes() [][]byte {
 	return *n.UnprovisionedNodes
 }
 
-// Close closes all of the resorces that the network depends on
+// Close closes all of the resources that the network depends on
 func (n *Network) Close() {
 	n.Controller.Close()
 }
