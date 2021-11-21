@@ -10,7 +10,6 @@ func (n *Network) SceneStore(groupAddr uint16, name string) (uint16, error) {
 	if n.Store.GetConfigured() == false {
 		return 0, errors.New("Not Configured")
 	}
-	group := n.Store.Groups[groupAddr]
 	group, getErr := n.Store.GetGroup(groupAddr)
 	if getErr != nil {
 		return 0, getErr
